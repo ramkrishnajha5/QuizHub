@@ -408,16 +408,21 @@ const QuizRunner: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="bg-white dark:bg-darkcard p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700"
           >
-            <div className="flex justify-between items-start mb-6">
-              <span className="bg-blue-100 dark:bg-blue-900 text-primary dark:text-blue-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <span className="bg-blue-100 dark:bg-blue-900 text-primary dark:text-blue-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide w-fit">
                 {currentQ.category}
               </span>
               <button
                 onClick={toggleMarkReview}
-                className={`flex items-center text-sm ${currentA.isMarkedForReview ? 'text-yellow-600 dark:text-yellow-400 font-bold' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                className={`flex items-center text-sm transition-colors px-3 py-1.5 rounded-lg self-start sm:self-auto
+                  ${currentA.isMarkedForReview
+                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 font-medium'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
               >
-                <Flag size={16} className="mr-1" fill={currentA.isMarkedForReview ? "currentColor" : "none"} />
-                {currentA.isMarkedForReview ? 'Marked' : 'Mark for Review'} (M)
+                <Flag size={16} className="mr-2" fill={currentA.isMarkedForReview ? "currentColor" : "none"} />
+                <span>{currentA.isMarkedForReview ? 'Marked for Review' : 'Mark for Review'}</span>
+                <span className="ml-1 text-xs opacity-60 hidden sm:inline">(M)</span>
               </button>
             </div>
 

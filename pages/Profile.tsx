@@ -107,7 +107,7 @@ const Profile: React.FC = () => {
     }
 
     return (
-        <div className="max-w-3xl mx-auto p-8 dark:text-white min-h-screen">
+        <div className="max-w-3xl mx-auto p-4 md:p-8 dark:text-white min-h-screen">
             {/* Alert */}
             {alert && (
                 <Alert
@@ -118,11 +118,11 @@ const Profile: React.FC = () => {
                 />
             )}
 
-            <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">My Profile</h1>
+            <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white text-center md:text-left">My Profile</h1>
 
             <div className="bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
                 {/* Profile Picture */}
-                <div className="flex items-start space-x-6 mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
                     {currentUser.photoURL ? (
                         <img
                             src={currentUser.photoURL}
@@ -134,7 +134,7 @@ const Profile: React.FC = () => {
                             <User size={40} className="text-white" />
                         </div>
                     )}
-                    <div className="flex-1">
+                    <div className="flex-1 text-center md:text-left">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                             {name || 'User'}
                         </h2>
@@ -232,17 +232,17 @@ const Profile: React.FC = () => {
 
             {/* Info Box with Interactive Dashboard Button */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-100 dark:border-blue-900/30 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <span className="text-2xl">📊</span>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex flex-col md:flex-row items-center gap-3 text-center md:text-left">
+                        <span className="text-4xl md:text-2xl mb-2 md:mb-0">📊</span>
                         <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">View Your Performance</p>
+                            <p className="font-semibold text-gray-900 dark:text-white text-lg">View Your Performance</p>
                             <p className="text-sm text-gray-600 dark:text-gray-300">Detailed account statistics and performance history charts are available on the Dashboard</p>
                         </div>
                     </div>
                     <a
                         href="/#/dashboard"
-                        className="px-6 py-3 bg-primary hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-md hover:shadow-lg transform hover:scale-105 flex items-center gap-2 whitespace-nowrap"
+                        className="w-full md:w-auto px-6 py-3 bg-primary hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                         Go to Dashboard
                         <ArrowRight size={18} />
