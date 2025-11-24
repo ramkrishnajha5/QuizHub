@@ -9,16 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "firebase": "^12.6.0",
+    "framer-motion": "^12.23.24",
+    "idb": "^8.0.3",
+    "lucide-react": "^0.554.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "firebase": "^12.6.0",
-    "react-router-dom": "^7.9.6",
-    "lucide-react": "^0.554.0",
-    "framer-motion": "^12.23.24",
-    "recharts": "^3.4.1",
-    "uuid": "^13.0.0",
     "react-firebase-hooks": "^5.1.1",
-    "idb": "^8.0.3"
+    "react-router-dom": "^7.9.6",
+    "recharts": "^3.4.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
