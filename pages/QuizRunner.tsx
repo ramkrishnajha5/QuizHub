@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import Alert from '../components/Alert';
 import { saveQuizResult } from '../utils/saveQuizResult';
 import { useAuth } from '../contexts/AuthContext';
+import { useQuiz } from '../contexts/QuizContext';
 import { QuizQuestion, UserAnswer as QuizUserAnswer } from '../types';
 
 interface QuizLocationState {
@@ -23,6 +24,7 @@ const QuizRunner: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { setQuizInProgress } = useQuiz();
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -68,6 +70,7 @@ const QuizRunner: React.FC = () => {
           setCurrentQuestionIndex(saved.currentQuestionIndex);
           setLoading(false);
           setIsInitialized(true);
+          setQuizInProgress(true);
           return;
         }
 
@@ -128,6 +131,7 @@ const QuizRunner: React.FC = () => {
         console.log('✅ Quiz initialized successfully with', qs.length, 'questions');
         setLoading(false);
         setIsInitialized(true);
+        setQuizInProgress(true);
 
       } catch (error: any) {
         console.error('❌ Error initializing quiz:', error);
@@ -182,6 +186,20 @@ const QuizRunner: React.FC = () => {
 
     init();
   }, []); // Empty dependency array - only run once
+
+  // Browser beforeunload warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!loading && !isSubmitting && isInitialized) {
+        e.preventDefault();
+        e.returnValue = 'Your quiz progress will be lost if you leave. Are you sure?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [loading, isSubmitting, isInitialized]);
 
   // Timer
   useEffect(() => {
@@ -260,6 +278,7 @@ const QuizRunner: React.FC = () => {
   const finishQuiz = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setQuizInProgress(false); // Clear quiz protection
 
     let correct = 0;
     let wrong = 0;
