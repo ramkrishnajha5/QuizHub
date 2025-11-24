@@ -23,7 +23,7 @@ const Home: React.FC = () => {
             Master Your Knowledge with <span className="text-primary">QuizHub</span>
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-2xl mx-auto">
-            Smart, free mock tests for everyone. Challenge yourself with thousands of questions across various categories. Elevate your learning experience with our advanced analytics and distraction-free interface.
+            Smart mock tests and comprehensive study materials in one place. Challenge yourself with thousands of quiz questions and explore millions of books across Science, Computer Science, Arts, and Commerce. Elevate your learning experience today.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4">
@@ -45,28 +45,28 @@ const Home: React.FC = () => {
                 <Zap className="text-primary dark:text-blue-400 w-6 h-6" />
               </div>
               <h3 className="text-lg font-bold mb-2 dark:text-white">Instant Feedback</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">Get immediate results and detailed explanations for every question you answer. Learn as you go.</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Get immediate results and detailed explanations for every question. Learn from your mistakes.</p>
             </div>
             <div className="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4">
                 <BarChart2 className="text-green-600 dark:text-green-400 w-6 h-6" />
               </div>
               <h3 className="text-lg font-bold mb-2 dark:text-white">Track Progress</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">Visualize your improvement over time with comprehensive analytics charts and performance history.</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Visualize your improvement with comprehensive analytics, performance history, and saved books library.</p>
             </div>
             <div className="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-4">
                 <Layers className="text-purple-600 dark:text-purple-400 w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold mb-2 dark:text-white">Diverse Topics</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">From Science to Pop Culture, access a vast library of questions sourced from Open Trivia DB.</p>
+              <h3 className="text-lg font-bold mb-2 dark:text-white">Study Materials</h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Access millions of books from Google Books across 24+ subjects. Build your personal library.</p>
             </div>
             <div className="bg-white dark:bg-darkcard p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
               <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center mb-4">
                 <Smartphone className="text-orange-600 dark:text-orange-400 w-6 h-6" />
               </div>
               <h3 className="text-lg font-bold mb-2 dark:text-white">Mobile Optimized</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">Designed for seamless performance on all devices. Practice on the go with offline support.</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Seamless experience on all devices. Practice quizzes and browse books anytime, anywhere.</p>
             </div>
           </div>
         </motion.div>

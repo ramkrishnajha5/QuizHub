@@ -4,6 +4,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../utils/firebase';
 import { Menu, X, User, LogOut, Zap, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuiz } from '../contexts/QuizContext';
 
 const Header: React.FC = () => {
   const [user] = useAuthState(auth);
@@ -11,6 +12,7 @@ const Header: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const navigate = useNavigate();
+  const { attemptNavigation } = useQuiz();
 
   useEffect(() => {
     // Check local storage or system preference
@@ -44,22 +46,25 @@ const Header: React.FC = () => {
     navigate('/');
   };
 
+
   return (
-    <header className="bg-white dark:bg-darkcard shadow-sm sticky top-0 z-50 transition-colors duration-200">
+    <header className="fixed top-0 left-0 right-0 bg-white dark:bg-darkcard shadow-sm z-50 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
 
+
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 text-primary font-bold text-xl tracking-tight">
+          <Link to="/" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/')); }} className="flex items-center space-x-2 text-primary font-bold text-xl tracking-tight">
             <Zap className="w-6 h-6 text-accent" fill="currentColor" />
             <span className="dark:text-white">QuizHub</span>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8 items-center">
-            <Link to="/" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">Home</Link>
-            <Link to="/about" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">About Us</Link>
-            <Link to="/contact" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">Contact Us</Link>
+            <Link to="/" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/')); }} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">Home</Link>
+            <Link to="/study" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/study')); }} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">Study</Link>
+            <Link to="/about" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/about')); }} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">About Us</Link>
+            <Link to="/contact" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/contact')); }} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">Contact Us</Link>
           </nav>
 
           {/* Desktop Right Section */}
@@ -97,10 +102,11 @@ const Header: React.FC = () => {
                       exit={{ opacity: 0, y: 10 }}
                       className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 border border-gray-100 dark:border-gray-700"
                     >
-                      <Link to="/" onClick={() => setIsProfileOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Home</Link>
-                      <Link to="/dashboard" onClick={() => setIsProfileOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Dashboard</Link>
-                      <Link to="/profile" onClick={() => setIsProfileOpen(false)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Profile</Link>
-                      <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2">
+                      <Link to="/" onClick={(e) => { e.preventDefault(); setIsProfileOpen(false); attemptNavigation(() => navigate('/')); }} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Home</Link>
+                      <Link to="/dashboard" onClick={(e) => { e.preventDefault(); setIsProfileOpen(false); attemptNavigation(() => navigate('/dashboard')); }} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Dashboard</Link>
+                      <Link to="/saved-books" onClick={(e) => { e.preventDefault(); setIsProfileOpen(false); attemptNavigation(() => navigate('/saved-books')); }} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Saved Books</Link>
+                      <Link to="/profile" onClick={(e) => { e.preventDefault(); setIsProfileOpen(false); attemptNavigation(() => navigate('/profile')); }} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Profile</Link>
+                      <button onClick={(e) => { e.preventDefault(); setIsProfileOpen(false); attemptNavigation(() => handleLogout()); }} className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2">
                         <LogOut size={14} />
                         <span>Logout</span>
                       </button>
@@ -140,9 +146,10 @@ const Header: React.FC = () => {
             className="md:hidden overflow-hidden bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700"
           >
             <div className="px-4 pt-2 pb-6 space-y-2">
-              <Link to="/" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Home</Link>
-              <Link to="/about" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">About Us</Link>
-              <Link to="/contact" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Contact Us</Link>
+              <Link to="/" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => navigate('/')); }} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Home</Link>
+              <Link to="/study" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => navigate('/study')); }} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Study</Link>
+              <Link to="/about" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => navigate('/about')); }} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">About Us</Link>
+              <Link to="/contact" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => navigate('/contact')); }} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Contact Us</Link>
 
               {user ? (
                 <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
@@ -156,9 +163,10 @@ const Header: React.FC = () => {
                     )}
                     <span className="font-medium text-gray-900 dark:text-white">{user.displayName}</span>
                   </div>
-                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Dashboard</Link>
-                  <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Profile</Link>
-                  <button onClick={handleLogout} className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Logout</button>
+                  <Link to="/dashboard" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => navigate('/dashboard')); }} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Dashboard</Link>
+                  <Link to="/saved-books" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => navigate('/saved-books')); }} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Saved Books</Link>
+                  <Link to="/profile" onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => navigate('/profile')); }} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700">Profile</Link>
+                  <button onClick={(e) => { e.preventDefault(); setIsMenuOpen(false); attemptNavigation(() => handleLogout()); }} className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Logout</button>
                 </div>
               ) : (
                 <div className="mt-4">

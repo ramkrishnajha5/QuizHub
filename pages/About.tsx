@@ -28,8 +28,8 @@ const About: React.FC = () => {
           <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <BookOpen size={32} />
           </div>
-          <h3 className="text-xl font-bold mb-3 dark:text-white">Open Source Data</h3>
-          <p className="text-gray-600 dark:text-gray-400">Powered by the Open Trivia DB, contributing to the global commons of educational resources and ensuring diverse question sets.</p>
+          <h3 className="text-xl font-bold mb-3 dark:text-white">Comprehensive Resources</h3>
+          <p className="text-gray-600 dark:text-gray-400">Powered by Open Trivia DB for quizzes and Google Books API for millions of study materials across 24+ subjects.</p>
         </div>
       </div>
 
@@ -39,10 +39,10 @@ const About: React.FC = () => {
           <div className="flex-1">
             <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Our Philosophy</h2>
             <p className="text-lg text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-              QuizHub was born out of the frustration with cluttered, ad-filled quiz sites. We wanted to create a "Zen" mode for testing your knowledge—whether you are preparing for a pub quiz, a school exam, or just want to learn something new.
+              QuizHub was born out of the frustration with cluttered, ad-filled quiz sites. We wanted to create a "Zen" mode for testing your knowledge and accessing quality study materials—whether you are preparing for exams, building a personal library, or exploring new subjects.
             </p>
             <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              We leverage modern web technologies like React, Tailwind CSS, and IndexedDB to ensure your progress is never lost, even if your internet connection drops. By focusing on user experience first, we aim to make learning a habit, not a chore.
+              We leverage modern web technologies like React, Firebase, and Google Books API to provide seamless quiz experiences and access to millions of books. With features like saved book libraries, progress tracking, and offline support, we make learning a habit, not a chore.
             </p>
           </div>
           <div className="md:w-1/3 w-full bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-inner">
@@ -66,11 +66,11 @@ const About: React.FC = () => {
       <div className="text-center pb-8">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Join the Movement</h2>
         <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          QuizHub is constantly evolving. We are working on new features like multiplayer challenges, custom quiz creation, and more deep-dive analytics.
+          QuizHub is constantly evolving. New features include Google Books integration with 24+ subjects, saved book libraries, enhanced quiz protection, and comprehensive study resources across Science, Computer Science, Arts, and Commerce.
         </p>
         <div className="mt-8 flex justify-center space-x-4">
           <span className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-sm font-medium">
-            Version 1.2.0
+            Version 2.1.0
           </span>
           <span className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-sm font-medium">
             Active Development

@@ -11,6 +11,7 @@ const Footer: React.FC = () => {
           <div className="mb-4 md:mb-0 text-center md:text-left">
             <p>&copy; {new Date().getFullYear()} QuizHub. All rights reserved.</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Questions provided by Open Trivia DB (CC BY-SA 4.0)</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Book metadata provided by Google Books API and OpenStax</p>
           </div>
 
           <div className="flex items-center space-x-1">
