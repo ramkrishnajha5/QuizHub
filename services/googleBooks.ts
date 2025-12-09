@@ -71,6 +71,29 @@ export const SUBJECT_QUERY_MAP: Record<string, string> = {
     "commerce-finance": "subject:finance OR subject:banking",
     "commerce-marketing": "subject:marketing",
     "commerce-management": "subject:management",
+
+    // General Knowledge
+    "gk-world-affairs": "current affairs OR world politics OR international relations",
+    "gk-indian-history": "indian history OR history of india",
+    "gk-world-history": "world history OR global history",
+    "gk-geography": "geography OR environmental studies",
+    "gk-polity": "indian polity OR indian constitution OR governance",
+    "gk-economy": "indian economy OR economics india",
+    "gk-science-tech": "science and technology OR general science",
+    "gk-sports": "sports OR games OR athletics",
+    "gk-awards": "awards and honors OR prizes",
+    "gk-books-authors": "famous books and authors OR literature",
+
+    // Reasoning
+    "reasoning-logical": "logical reasoning OR logic puzzles",
+    "reasoning-verbal": "verbal reasoning OR verbal ability",
+    "reasoning-non-verbal": "non-verbal reasoning OR spatial reasoning",
+    "reasoning-analytical": "analytical reasoning OR analytical thinking",
+    "reasoning-critical": "critical thinking OR critical reasoning",
+    "reasoning-puzzles": "brain teasers OR puzzles OR riddles",
+    "reasoning-data-interpretation": "data interpretation OR data analysis",
+    "reasoning-pattern": "pattern recognition OR sequence puzzles",
+    "reasoning-series": "number series OR letter series OR sequences",
 };
 
 export async function searchBooksBySubject(subjectKey: string, maxResults = 20): Promise<Book[]> {

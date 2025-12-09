@@ -75,6 +75,41 @@ const CATEGORIES: Category[] = [
             { key: 'commerce-management', name: 'Management' },
         ]
     },
+    {
+        key: 'gk',
+        name: 'General Knowledge',
+        icon: '🌍',
+        color: 'bg-gradient-to-br from-orange-500 to-orange-700',
+        subtopics: [
+            { key: 'gk-world-affairs', name: 'World Affairs & Current Events' },
+            { key: 'gk-indian-history', name: 'Indian History' },
+            { key: 'gk-world-history', name: 'World History' },
+            { key: 'gk-geography', name: 'Geography & Environment' },
+            { key: 'gk-polity', name: 'Indian Polity & Governance' },
+            { key: 'gk-economy', name: 'Indian Economy' },
+            { key: 'gk-science-tech', name: 'Science & Technology' },
+            { key: 'gk-sports', name: 'Sports & Games' },
+            { key: 'gk-awards', name: 'Awards & Honors' },
+            { key: 'gk-books-authors', name: 'Books & Authors' },
+        ]
+    },
+    {
+        key: 'reasoning',
+        name: 'Reasoning',
+        icon: '🧩',
+        color: 'bg-gradient-to-br from-teal-500 to-cyan-700',
+        subtopics: [
+            { key: 'reasoning-logical', name: 'Logical Reasoning' },
+            { key: 'reasoning-verbal', name: 'Verbal Reasoning' },
+            { key: 'reasoning-non-verbal', name: 'Non-Verbal Reasoning' },
+            { key: 'reasoning-analytical', name: 'Analytical Reasoning' },
+            { key: 'reasoning-critical', name: 'Critical Thinking' },
+            { key: 'reasoning-puzzles', name: 'Puzzles & Brain Teasers' },
+            { key: 'reasoning-data-interpretation', name: 'Data Interpretation' },
+            { key: 'reasoning-pattern', name: 'Pattern Recognition' },
+            { key: 'reasoning-series', name: 'Number & Letter Series' },
+        ]
+    },
 ];
 
 const Study: React.FC = () => {
@@ -189,7 +224,7 @@ const Study: React.FC = () => {
                                 Explore books across different subjects from Google Books
                             </p>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {CATEGORIES.map((category) => (
                                     <motion.button
                                         key={category.key}
@@ -211,7 +246,7 @@ const Study: React.FC = () => {
                             </div>
                         </motion.div>
                     ) : !selectedSubtopic ? (
-                        // Subtopics View
+                        // Subtopics View - MODERN REDESIGN
                         <motion.div
                             key="subtopics"
                             initial={{ opacity: 0, y: 20 }}
@@ -220,32 +255,82 @@ const Study: React.FC = () => {
                         >
                             <button
                                 onClick={handleBack}
-                                className="flex items-center text-primary hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium mb-4 group"
+                                className="flex items-center text-primary hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium mb-6 group transition-all"
                             >
                                 <ArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" size={20} />
                                 Back to Categories
                             </button>
 
-                            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                                {selectedCategory.icon} {selectedCategory.name}
-                            </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mb-8">
-                                Select a topic to explore books
-                            </p>
+                            {/* Header Section */}
+                            <div className="mb-10">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className={`${selectedCategory.color} w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shadow-lg`}>
+                                        {selectedCategory.icon}
+                                    </div>
+                                    <div>
+                                        <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white">
+                                            {selectedCategory.name}
+                                        </h1>
+                                        <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
+                                            Explore {selectedCategory.subtopics.length} topics • Find books and resources
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {selectedCategory.subtopics.map((subtopic) => (
+                            {/* Modern Grid Layout */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {selectedCategory.subtopics.map((subtopic, index) => (
                                     <motion.button
                                         key={subtopic.key}
                                         onClick={() => handleSubtopicClick(subtopic.key)}
-                                        whileHover={{ scale: 1.03 }}
-                                        whileTap={{ scale: 0.97 }}
-                                        className="bg-white dark:bg-darkcard p-6 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700 text-left group"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        whileHover={{ y: -8, scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        className="relative group bg-white dark:bg-darkcard rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-transparent hover:border-primary/30"
                                     >
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
-                                            {subtopic.name}
-                                        </h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">Click to browse books</p>
+                                        {/* Gradient Overlay */}
+                                        <div className={`absolute inset-0 ${selectedCategory.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+
+                                        {/* Animated Corner Accent */}
+                                        <div className={`absolute top-0 right-0 w-24 h-24 ${selectedCategory.color} opacity-10 rounded-bl-full transform translate-x-12 -translate-y-12 group-hover:translate-x-8 group-hover:-translate-y-8 transition-transform duration-300`} />
+
+                                        {/* Content */}
+                                        <div className="relative p-6 text-left h-full flex flex-col">
+                                            {/* Icon/Number Badge */}
+                                            <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${selectedCategory.color} text-white font-bold text-lg mb-4 shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                                                {index + 1}
+                                            </div>
+
+                                            {/* Title */}
+                                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors duration-300">
+                                                {subtopic.name}
+                                            </h3>
+
+                                            {/* Description */}
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 flex-grow">
+                                                Browse curated books and resources
+                                            </p>
+
+                                            {/* Book Icon with Animation */}
+                                            <div className="flex items-center text-primary dark:text-blue-400 font-semibold text-sm group-hover:gap-2 gap-1 transition-all duration-300">
+                                                <BookOpen className="w-4 h-4 group-hover:animate-pulse" />
+                                                <span>Explore Books</span>
+                                                <motion.span
+                                                    className="inline-block"
+                                                    initial={{ x: 0 }}
+                                                    animate={{ x: [0, 4, 0] }}
+                                                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                                >
+                                                    →
+                                                </motion.span>
+                                            </div>
+                                        </div>
+
+                                        {/* Shine Effect on Hover */}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
                                     </motion.button>
                                 ))}
                             </div>
@@ -337,8 +422,8 @@ const Study: React.FC = () => {
                                                         onClick={() => handleSaveBook(book)}
                                                         disabled={savingBookId === book.id}
                                                         className={`flex items-center justify-center px-3 py-2 text-sm rounded-lg transition ${savedBookIds.has(book.id)
-                                                                ? 'bg-green-600 text-white hover:bg-green-700'
-                                                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                                            ? 'bg-green-600 text-white hover:bg-green-700'
+                                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
                                                             }`}
                                                     >
                                                         {savingBookId === book.id ? (
