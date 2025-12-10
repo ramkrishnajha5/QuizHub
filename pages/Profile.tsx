@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../utils/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { User, Edit2, Save, Calendar, Phone, Mail, Loader, ArrowRight } from 'lucide-react';
+import { User, Edit2, Save, Calendar, Phone, Mail, Loader, ArrowRight, Sparkles, Shield, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Alert from '../components/Alert';
 
 const Profile: React.FC = () => {
@@ -18,26 +19,17 @@ const Profile: React.FC = () => {
     useEffect(() => {
         const loadUserData = async () => {
             if (currentUser) {
-                // Set email and name from auth
                 setEmail(currentUser.email || '');
                 setName(currentUser.displayName || '');
-
                 try {
-                    // Load additional data from Firestore
-                    const userDocRef = doc(db, 'users', currentUser.uid);
-                    const userDoc = await getDoc(userDocRef);
-
+                    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                     if (userDoc.exists()) {
                         const data = userDoc.data();
                         setPhone(data.phone || '');
                         setDob(data.dob || '');
-                        // Override name if it exists in Firestore
-                        if (data.name) {
-                            setName(data.name);
-                        }
+                        if (data.name) setName(data.name);
                     }
                 } catch (error) {
-                    console.error('Error loading user data:', error);
                     setAlert({ type: 'error', message: 'Failed to load profile data' });
                 }
             }
@@ -48,40 +40,24 @@ const Profile: React.FC = () => {
 
     const handleSave = async () => {
         if (!currentUser) {
-            setAlert({ type: 'error', message: 'You must be logged in to update your profile' });
+            setAlert({ type: 'error', message: 'You must be logged in' });
             return;
         }
-
         if (!name.trim()) {
             setAlert({ type: 'error', message: 'Name cannot be empty' });
             return;
         }
-
         setSaving(true);
         setAlert(null);
-
         try {
-            // Update Firebase Auth displayName
             await updateUserProfile(name.trim());
-
-            // Update Firestore user document
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            await setDoc(userDocRef, {
-                name: name.trim(),
-                email: email,
-                phone: phone.trim() || null,
-                dob: dob || null,
-                updatedAt: serverTimestamp()
+            await setDoc(doc(db, 'users', currentUser.uid), {
+                name: name.trim(), email, phone: phone.trim() || null, dob: dob || null, updatedAt: serverTimestamp()
             }, { merge: true });
-
             setAlert({ type: 'success', message: 'Profile updated successfully!' });
             setTimeout(() => setAlert(null), 5000);
         } catch (error: any) {
-            console.error('Error updating profile:', error);
-            setAlert({
-                type: 'error',
-                message: error.message || 'Failed to update profile. Please try again.'
-            });
+            setAlert({ type: 'error', message: error.message || 'Failed to update profile' });
         } finally {
             setSaving(false);
         }
@@ -89,10 +65,11 @@ const Profile: React.FC = () => {
 
     if (!currentUser) {
         return (
-            <div className="min-h-screen flex items-center justify-center dark:bg-darkbg">
-                <div className="text-center">
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">Please login to view your profile</p>
-                    <a href="/#/login" className="text-primary hover:underline">Go to Login</a>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+                <div className="text-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-12 rounded-3xl border border-white/20 shadow-2xl">
+                    <Shield className="w-16 h-16 mx-auto mb-6 text-purple-500" />
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">Access Required</h2>
+                    <a href="/#/login" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-xl">Go to Login</a>
                 </div>
             </div>
         );
@@ -100,156 +77,114 @@ const Profile: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center dark:bg-darkbg">
-                <Loader className="animate-spin h-12 w-12 text-primary" />
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+                <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="max-w-3xl mx-auto p-4 md:p-8 dark:text-white min-h-screen">
-            {/* Alert */}
-            {alert && (
-                <Alert
-                    type={alert.type}
-                    message={alert.message}
-                    show={!!alert}
-                    onClose={() => setAlert(null)}
-                />
-            )}
-
-            <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white text-center md:text-left">My Profile</h1>
-
-            <div className="bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-                {/* Profile Picture */}
-                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-                    {currentUser.photoURL ? (
-                        <img
-                            src={currentUser.photoURL}
-                            className="w-24 h-24 rounded-full border-2 border-gray-200 dark:border-gray-600"
-                            alt="Profile"
-                        />
-                    ) : (
-                        <div className="w-24 h-24 bg-gradient-to-br from-primary to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <User size={40} className="text-white" />
-                        </div>
-                    )}
-                    <div className="flex-1 text-center md:text-left">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                            {name || 'User'}
-                        </h2>
-                        <p className="text-gray-600 dark:text-gray-400">{email}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                            {currentUser.metadata.creationTime && `Member since ${new Date(currentUser.metadata.creationTime).toLocaleDateString()}`}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Profile Form */}
-                <div className="space-y-6">
-                    {/* Name */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                            <Edit2 size={16} className="mr-2" />
-                            Full Name *
-                        </label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                            placeholder="Enter your full name"
-                            required
-                        />
-                    </div>
-
-                    {/* Email (Read-only) */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                            <Mail size={16} className="mr-2" />
-                            Email Address
-                        </label>
-                        <input
-                            type="email"
-                            value={email}
-                            readOnly
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed"
-                        />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email cannot be changed</p>
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                            <Phone size={16} className="mr-2" />
-                            Phone Number
-                        </label>
-                        <input
-                            type="tel"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            placeholder="+912212224444"
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
-                    </div>
-
-                    {/* Date of Birth */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                            <Calendar size={16} className="mr-2" />
-                            Date of Birth
-                        </label>
-                        <input
-                            type="date"
-                            value={dob}
-                            onChange={(e) => setDob(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
-                    </div>
-
-                    {/* Save Button */}
-                    <div className="pt-4">
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="w-full flex items-center justify-center px-6 py-3 bg-primary text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg shadow-md"
-                        >
-                            {saving ? (
-                                <>
-                                    <Loader className="animate-spin mr-2" size={20} />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save size={20} className="mr-2" />
-                                    Save / Update Profile
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+            {/* Animated Background */}
+            <div className="fixed inset-0 pointer-events-none">
+                <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 20, repeat: Infinity }} className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-pink-500/20 to-orange-500/20 rounded-full blur-3xl" />
+                <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 25, repeat: Infinity }} className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl" />
             </div>
 
-            {/* Info Box with Interactive Dashboard Button */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-xl border border-blue-100 dark:border-blue-900/30 shadow-sm">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex flex-col md:flex-row items-center gap-3 text-center md:text-left">
-                        <span className="text-4xl md:text-2xl mb-2 md:mb-0">📊</span>
-                        <div>
-                            <p className="font-semibold text-gray-900 dark:text-white text-lg">View Your Performance</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300">Detailed account statistics and performance history charts are available on the Dashboard</p>
+            <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
+                <AnimatePresence>{alert && <Alert type={alert.type} message={alert.message} show={!!alert} onClose={() => setAlert(null)} />}</AnimatePresence>
+
+                {/* Header */}
+                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
+                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-full shadow-xl border border-white/20 mb-6">
+                        <Sparkles className="w-5 h-5 text-purple-500" />
+                        <span className="text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Profile Settings</span>
+                    </div>
+                    <h1 className="text-5xl font-black text-gray-900 dark:text-white">My <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Profile</span></h1>
+                </motion.div>
+
+                {/* Profile Card */}
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden mb-8">
+                    {/* Header Section with Gradient */}
+                    <div className="relative bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 px-8 py-8">
+                        <div className="flex flex-col md:flex-row items-center md:items-center gap-6">
+                            {/* Avatar */}
+                            <div className="relative">
+                                {currentUser.photoURL ? (
+                                    <img src={currentUser.photoURL} className="w-32 h-32 rounded-3xl border-4 border-white shadow-2xl" alt="Profile" />
+                                ) : (
+                                    <div className="w-32 h-32 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center shadow-2xl border-4 border-white">
+                                        <User size={48} className="text-white" />
+                                    </div>
+                                )}
+                                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+                                    <CheckCircle2 className="w-5 h-5 text-white" />
+                                </div>
+                            </div>
+
+                            {/* Name & Info */}
+                            <div className="flex-1 text-center md:text-left">
+                                <h2 className="text-4xl font-black text-white mb-3">{name || 'User'}</h2>
+                                {currentUser.metadata.creationTime && (
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
+                                        <Calendar className="w-4 h-4 text-white" />
+                                        <span className="text-sm font-medium text-white">
+                                            Member since {new Date(currentUser.metadata.creationTime).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                    <a
-                        href="/#/dashboard"
-                        className="w-full md:w-auto px-6 py-3 bg-primary hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center gap-2 whitespace-nowrap"
-                    >
-                        Go to Dashboard
-                        <ArrowRight size={18} />
-                    </a>
-                </div>
-            </div>
-        </div>
+
+                    {/* Form Section */}
+                    <div className="px-8 pb-8 pt-8">
+                        {/* Form */}
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2"><Edit2 size={16} className="text-purple-600" /> Full Name *</label>
+                                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-2 border-purple-200 dark:border-purple-800 rounded-xl focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white font-medium transition" placeholder="Enter your name" />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2"><Mail size={16} className="text-blue-600" /> Email</label>
+                                <input type="email" value={email} readOnly className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-600 dark:text-gray-400 cursor-not-allowed font-medium" />
+                                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1"><Shield size={12} /> Email cannot be changed</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2"><Phone size={16} className="text-green-600" /> Phone</label>
+                                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 1234567890" className="w-full px-4 py-3 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-2 border-purple-200 dark:border-purple-800 rounded-xl focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white font-medium transition" />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2"><Calendar size={16} className="text-orange-600" /> Date of Birth</label>
+                                <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="w-full px-4 py-3 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-2 border-purple-200 dark:border-purple-800 rounded-xl focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white font-medium transition" />
+                            </div>
+
+                            <button onClick={handleSave} disabled={saving} className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white rounded-xl font-bold shadow-xl hover:shadow-2xl transition disabled:opacity-50">
+                                {saving ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</> : <><Save size={20} /> Save Profile</>}
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Dashboard CTA */}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="relative bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 rounded-3xl p-8 shadow-2xl overflow-hidden">
+                    <div className="absolute inset-0 opacity-20"><div style={{ backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`, backgroundSize: '20px 20px' }} className="absolute inset-0" /></div>
+                    <div className="relative flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="text-5xl">📊</div>
+                            <div>
+                                <h3 className="text-2xl font-black text-white mb-1">View Performance</h3>
+                                <p className="text-white/90">Check your stats on the dashboard</p>
+                            </div>
+                        </div>
+                        <a href="/#/dashboard" className="px-8 py-4 bg-white text-blue-600 rounded-xl font-bold shadow-xl hover:shadow-2xl transition flex items-center gap-2">Go to Dashboard <ArrowRight /></a>
+                    </div>
+                </motion.div>
+            </div >
+        </div >
     );
 };
 

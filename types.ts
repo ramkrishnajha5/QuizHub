@@ -1,10 +1,3 @@
-export enum Difficulty {
-  EASY = 'easy',
-  MEDIUM = 'medium',
-  HARD = 'hard',
-  MIXED = 'mixed'
-}
-
 export interface Category {
   id: number;
   name: string;
@@ -45,7 +38,7 @@ export interface QuizAttempt {
   categoryId?: number;
   category: string; // This is categoryName in saveQuizResult
   categoryName?: string;
-  difficulty: string;
+  questionCount: number; // Number of questions (10, 15, 20, 25)
   startedAt: number;
   endedAt?: number;
   finishedAt?: number;

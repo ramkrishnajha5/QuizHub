@@ -17,7 +17,7 @@ import { QuizQuestion, UserAnswer as QuizUserAnswer } from '../types';
 
 interface QuizLocationState {
   categoryId: number;
-  difficulty: string;
+  questionCount: number;
 }
 
 const QuizRunner: React.FC = () => {
@@ -37,7 +37,7 @@ const QuizRunner: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'warning' | 'info', message: string } | null>(null);
   const [categoryId, setCategoryId] = useState<number>(9);
-  const [difficulty, setDifficulty] = useState<string>('medium');
+  const [questionCount, setQuestionCount] = useState<number>(15);
 
   // Refs for autosave logic
   const stateRef = useRef({ questions, currentQuestionIndex, userAnswers, timeLeft });
@@ -82,14 +82,14 @@ const QuizRunner: React.FC = () => {
           return;
         }
 
-        // Set category and difficulty state for saving later
+        // Set category and question count state for saving later
         setCategoryId(state.categoryId);
-        setDifficulty(state.difficulty || 'medium');
+        setQuestionCount(state.questionCount || 15);
 
-        console.log('Fetching questions for category:', state.categoryId, 'difficulty:', state.difficulty);
+        console.log('Fetching questions for category:', state.categoryId, 'questionCount:', state.questionCount);
 
-        // Fetch questions
-        const response = await fetchQuestions(state.categoryId, state.difficulty);
+        // Fetch questions with count
+        const response = await fetchQuestions(state.categoryId, state.questionCount);
         const qs = response.questions;
         const warning = response.warning;
 
@@ -106,7 +106,7 @@ const QuizRunner: React.FC = () => {
           console.error('No questions returned from API');
           if (!hasShownError) {
             setHasShownError(true);
-            setAlert({ type: 'error', message: 'No questions available for this category/difficulty combination. Please try another selection.' });
+            setAlert({ type: 'error', message: 'No questions available for this category. Please try another selection.' });
             setTimeout(() => navigate('/setup'), 3000);
           }
           return;
@@ -124,8 +124,8 @@ const QuizRunner: React.FC = () => {
         }));
         setUserAnswers(initialAnswers);
 
-        // Set timer
-        const duration = TIMERS[state.difficulty as keyof typeof TIMERS] || 1200;
+        // Set timer based on question count
+        const duration = TIMERS[state.questionCount] || TIMERS[15];
         setTimeLeft(duration);
 
         console.log('✅ Quiz initialized successfully with', qs.length, 'questions');
@@ -156,7 +156,7 @@ const QuizRunner: React.FC = () => {
         }
         // No questions available
         else if (errorMessage.includes('No questions available') || errorMessage.includes('not have enough questions')) {
-          userMessage = '📚 No Questions Available\n\nThis category/difficulty combination doesn\'t have enough questions. Try:\n• Selecting a different difficulty level\n• Choosing a different category\n• Selecting "Mixed" difficulty for more variety';
+          userMessage = '📚 No Questions Available\n\nThis category doesn\'t have enough questions for the selected count. Try:\n• Selecting fewer questions\n• Choosing a different category\n• Trying a different topic with more available questions';
         }
         // Invalid parameters
         else if (errorMessage.includes('Invalid parameters')) {
@@ -176,7 +176,7 @@ const QuizRunner: React.FC = () => {
         }
         // Generic API error
         else if (errorMessage.includes('API')) {
-          userMessage = '⚠️ Quiz API Error\n\n' + errorMessage + '\n\nPlease try selecting a different category or difficulty.';
+          userMessage = '⚠️ Quiz API Error\n\n' + errorMessage + '\n\nPlease try selecting a different category or question count.';
         }
 
         setAlert({ type: errorType, message: userMessage });
@@ -316,7 +316,7 @@ const QuizRunner: React.FC = () => {
       categoryId: categoryId,
       category: questions[0]?.category || 'General',
       categoryName: questions[0]?.category || 'General',
-      difficulty: difficulty,
+      questionCount: questionCount,
       startedAt: quizStartedAt,
       finishedAt: endedAt,
       durationSeconds: (endedAt - quizStartedAt) / 1000,

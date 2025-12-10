@@ -3,7 +3,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../utils/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { Play, History, Zap, BarChart2, ArrowRight, Award, BookOpen } from 'lucide-react';
+import { Play, Award, TrendingUp, Sparkles, ChevronRight, BookOpen, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getQuizState } from '../utils/idb';
 import { QuizAttempt } from '../types';
@@ -18,117 +18,124 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         const checkResume = async () => {
             const saved = await getQuizState();
-            if (saved && saved.status === 'active') {
-                setSavedState(saved);
-            }
+            if (saved && saved.status === 'active') setSavedState(saved);
         };
         checkResume();
 
         if (user) {
             const fetchHistory = async () => {
                 try {
-                    const q = query(
-                        collection(db, `users/${user.uid}/attempts`),
-                        orderBy('startedAt', 'desc'),
-                        limit(5)
-                    );
+                    const q = query(collection(db, `users/${user.uid}/attempts`), orderBy('startedAt', 'desc'), limit(5));
                     const querySnapshot = await getDocs(q);
-                    const attempts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuizAttempt));
-                    setRecentAttempts(attempts);
+                    setRecentAttempts(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuizAttempt)));
                 } catch (e) {
-                    console.error("Could not fetch history (likely permissions or mock mode):", e);
+                    console.error("Could not fetch history:", e);
                 }
             };
             fetchHistory();
         }
     }, [user]);
 
-    // Loading state
-    if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-darkbg"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
-
-    if (!user) {
+    if (loading) {
         return (
-            <div className="p-10 text-center text-gray-600 dark:text-gray-400">
-                Please <Link to="/login" className="text-primary hover:underline">login</Link> to view your dashboard.
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+                <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
+    if (!user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+                <div className="text-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-12 rounded-3xl border border-white/20 shadow-2xl">
+                    <Sparkles className="w-16 h-16 mx-auto mb-6 text-purple-500" />
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Please Login</p>
+                    <Link to="/login" className="text-purple-600 dark:text-purple-400 hover:underline font-semibold">Go to Login</Link>
+                </div>
+            </div>
+        );
+    }
+
+    const stats = [
+        { icon: Play, title: "Start Quiz", description: "Begin a new challenge", gradient: "from-blue-400 to-cyan-500", action: () => navigate('/setup') },
+        { icon: Award, title: "Best Score", value: recentAttempts.length > 0 ? Math.max(...recentAttempts.map(a => a.percent)).toFixed(0) + '%' : '0%', description: "Your top performance", gradient: "from-yellow-400 to-orange-500" },
+        { icon: TrendingUp, title: "Total Quizzes", value: recentAttempts.length.toString(), description: "Tests completed", gradient: "from-green-400 to-emerald-500" }
+    ];
+
     return (
-        <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8 dark:text-white box-border">
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mb-8"
-            >
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome back, {user.displayName?.split(' ')[0] || 'Scholar'}! 👋</h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">Ready to expand your horizons today?</p>
-            </motion.div>
-
-            {savedState && (
-                <div className="mb-6 md:mb-8 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between shadow-sm gap-3 sm:gap-0">
-                    <div className="min-w-0 flex-1">
-                        <h3 className="text-base md:text-lg font-semibold text-indigo-900 dark:text-indigo-200">Resume Quiz</h3>
-                        <p className="text-indigo-700 dark:text-indigo-300 text-xs md:text-sm mt-1">You have an unfinished {savedState.category || 'Mix'} quiz waiting for you.</p>
-                    </div>
-                    <button
-                        onClick={() => navigate('/quiz')}
-                        className="w-full sm:w-auto px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition shadow-md flex-shrink-0"
-                    >
-                        Continue
-                    </button>
-                </div>
-            )}
-
-            {/* Stats Cards - Mobile Optimized */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6 mb-8 md:mb-10 w-full">
-                {/* Start New Quiz Card */}
-                <div className="bg-white dark:bg-darkcard rounded-xl shadow-sm p-5 md:p-6 border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate('/setup')}>
-                    <div className="flex items-center justify-between mb-3 md:mb-4">
-                        <div className="p-2.5 md:p-3 bg-blue-50 dark:bg-blue-900/30 rounded-full text-primary dark:text-blue-400 group-hover:scale-110 transition-transform"><Play size={22} /></div>
-                    </div>
-                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Start New Quiz</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm mt-1.5 md:mt-2">Choose from 20+ categories and custom difficulties.</p>
-                </div>
-
-                {/* Best Score Card */}
-                <div className="bg-white dark:bg-darkcard rounded-xl shadow-sm p-5 md:p-6 border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-3 md:mb-4">
-                        <div className="p-2.5 md:p-3 bg-green-50 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-400"><Award size={22} /></div>
-                        <span className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{recentAttempts.length > 0 ? Math.max(...recentAttempts.map(a => a.percent)).toFixed(0) : 0}%</span>
-                    </div>
-                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Best Score</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm mt-1.5 md:mt-2">Your all-time high score across all quizzes.</p>
-                </div>
-
-                {/* Total Quizzes Card */}
-                <div className="bg-white dark:bg-darkcard rounded-xl shadow-sm p-5 md:p-6 border border-gray-100 dark:border-gray-700 sm:col-span-2 lg:col-span-1">
-                    <div className="flex items-center justify-between mb-3 md:mb-4">
-                        <div className="p-2.5 md:p-3 bg-purple-50 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400"><History size={22} /></div>
-                        <span className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{recentAttempts.length}</span>
-                    </div>
-                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Total Quizzes</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm mt-1.5 md:mt-2">Total mock tests completed to date.</p>
-                </div>
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+            {/* Animated Background */}
+            <div className="fixed inset-0 pointer-events-none">
+                <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 20, repeat: Infinity }} className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl" />
+                <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 25, repeat: Infinity }} className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl" />
             </div>
 
-            {/* Recent Quizzes Component */}
-            <div className="mb-6 md:mb-8 w-full min-w-0">
-                <DashboardRecentQuizzes />
-            </div>
+            <div className="relative z-10 max-w-7xl mx-auto px-4 py-12">
+                {/* Header */}
+                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
+                    <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-3">
+                        Welcome back, <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{user.displayName?.split(' ')[0] || 'Scholar'}</span>! 👋
+                    </h1>
+                    <p className="text-xl text-gray-600 dark:text-gray-400">Ready to learn something new today?</p>
+                </motion.div>
 
-            <div className="mt-6 md:mt-8 bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 md:p-6 border border-blue-100 dark:border-blue-900/20">
-                <div className="flex items-start space-x-3 md:space-x-4">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg text-primary dark:text-blue-200 flex-shrink-0">
-                        <BookOpen size={18} className="md:w-5 md:h-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm md:text-base">Did you know?</h4>
-                        <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 mt-1">
-                            Regular testing improves retention by 50% compared to just restudying. The "Testing Effect" is a proven psychological phenomenon that QuizHub helps you leverage.
-                        </p>
-                    </div>
+                {/* Resume Banner */}
+                {savedState && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mb-8 relative bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 rounded-3xl p-8 overflow-hidden shadow-2xl">
+                        <div className="absolute inset-0 opacity-20"><div style={{ backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`, backgroundSize: '20px 20px' }} className="absolute inset-0" /></div>
+                        <div className="relative flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <Zap className="w-12 h-12 text-white" />
+                                <div>
+                                    <h3 className="text-2xl font-black text-white mb-1">Resume Quiz</h3>
+                                    <p className="text-white/90">Continue your {savedState.category || 'Mix'} quiz</p>
+                                </div>
+                            </div>
+                            <button onClick={() => navigate('/quiz')} className="px-8 py-4 bg-white text-purple-600 rounded-xl font-bold shadow-xl hover:shadow-2xl transition flex items-center gap-2">
+                                Continue <ChevronRight />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Stats Grid */}
+                <div className="grid md:grid-cols-3 gap-6 mb-12">
+                    {stats.map((stat, idx) => (
+                        <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            onClick={stat.action}
+                            className={`relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-8 rounded-3xl border border-white/20 shadow-xl ${stat.action ? 'cursor-pointer' : ''}`}
+                        >
+                            <div className={`w-16 h-16 bg-gradient-to-br ${stat.gradient} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
+                                <stat.icon className="w-8 h-8 text-white" />
+                            </div>
+                            {stat.value && <div className={`text-5xl font-black mb-2 bg-gradient-to-br ${stat.gradient} bg-clip-text text-transparent`}>{stat.value}</div>}
+                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{stat.title}</h3>
+                            <p className="text-gray-600 dark:text-gray-400">{stat.description}</p>
+                            {stat.action && <div className="mt-4 text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-2">Get Started <ChevronRight className="w-4 h-4" /></div>}
+                        </motion.div>
+                    ))}
                 </div>
+
+                {/* Recent Quizzes */}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mb-8">
+                    <DashboardRecentQuizzes />
+                </motion.div>
+
+                {/* Tip */}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 rounded-3xl p-8 text-white shadow-xl">
+                    <div className="flex items-start gap-4">
+                        <BookOpen className="w-10 h-10 flex-shrink-0" />
+                        <div>
+                            <h4 className="text-2xl font-black mb-2">💡 Did you know?</h4>
+                            <p className="text-white/90 text-lg">Regular testing improves retention by <span className="font-bold">50%</span> compared to just restudying!</p>
+                        </div>
+                    </div>
+                </motion.div>
             </div>
         </div>
     );

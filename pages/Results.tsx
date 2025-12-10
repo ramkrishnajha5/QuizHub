@@ -2,15 +2,25 @@ import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { QuizAttempt } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Home } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Home, Trophy, Sparkles, Target } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Results: React.FC = () => {
   const location = useLocation();
   const result = location.state?.result as QuizAttempt;
   const [showSolutions, setShowSolutions] = useState(false);
 
-  if (!result) return <div className="p-8 text-center text-gray-600 dark:text-gray-400">No results found. <Link to="/" className="text-primary hover:underline">Go Home</Link></div>;
+  if (!result) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+        <div className="text-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-12 rounded-3xl shadow-2xl border border-white/20">
+          <AlertCircle className="w-16 h-16 mx-auto mb-6 text-purple-500" />
+          <p className="text-2xl font-bold text-gray-900 dark:text-white mb-4">No Results Found</p>
+          <Link to="/" className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-xl">Go Home</Link>
+        </div>
+      </div>
+    );
+  }
 
   const data = [
     { name: 'Correct', value: result.correct, color: '#10B981' },
@@ -19,140 +29,145 @@ const Results: React.FC = () => {
   ];
 
   const getGrade = (p: number) => {
-    if (p >= 90) return { text: 'Excellent!', color: 'text-green-600 dark:text-green-400' };
-    if (p >= 70) return { text: 'Good Job!', color: 'text-blue-600 dark:text-blue-400' };
-    if (p >= 50) return { text: 'Passed', color: 'text-yellow-600 dark:text-yellow-400' };
-    return { text: 'Keep Practicing', color: 'text-red-600 dark:text-red-400' };
+    if (p >= 90) return { text: 'Outstanding!', emoji: '🏆', gradient: 'from-yellow-400 via-orange-500 to-red-500' };
+    if (p >= 70) return { text: 'Great Job!', emoji: '🎉', gradient: 'from-green-400 via-emerald-500 to-teal-500' };
+    if (p >= 50) return { text: 'Good Effort', emoji: '👍', gradient: 'from-blue-400 via-cyan-500 to-indigo-500' };
+    return { text: 'Keep Practicing', emoji: '💪', gradient: 'from-purple-400 via-pink-500 to-rose-500' };
   };
 
   const grade = getGrade(result.percent);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-darkbg py-8 px-4 transition-colors duration-200">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
+      {/* Animated Background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 20, repeat: Infinity }} className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl" />
+        <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 25, repeat: Infinity }} className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl" />
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-darkcard rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-8"
-        >
-          <div className="bg-primary p-8 text-center text-white">
-            <h1 className="text-3xl font-bold mb-2">{grade.text}</h1>
-            <p className="opacity-90">You scored {result.percent.toFixed(1)}% on {result.category} ({result.difficulty})</p>
-          </div>
-
-          <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div className="h-64 w-full relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#1F2937', borderRadius: '8px', border: 'none', color: '#fff' }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
-                <span className="text-4xl font-bold text-gray-800 dark:text-white">{result.score}</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">/ {result.questions.length}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-900/30">
-                <div className="flex items-center text-green-700 dark:text-green-400 font-medium mb-1"><CheckCircle size={18} className="mr-2" /> Correct</div>
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">{result.correct}</span>
-              </div>
-              <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
-                <div className="flex items-center text-red-700 dark:text-red-400 font-medium mb-1"><XCircle size={18} className="mr-2" /> Wrong</div>
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">{result.wrong}</span>
-              </div>
-              <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center text-gray-700 dark:text-gray-300 font-medium mb-1"><AlertCircle size={18} className="mr-2" /> Unattempted</div>
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">{result.unattempted}</span>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                <div className="flex items-center text-blue-700 dark:text-blue-400 font-medium mb-1"><Clock size={18} className="mr-2" /> Time</div>
-                <span className="text-2xl font-bold text-gray-900 dark:text-white">{(result.durationSeconds / 60).toFixed(1)}m</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-gray-800 p-6 border-t border-gray-100 dark:border-gray-700 flex flex-wrap justify-center gap-4">
-            <button
-              onClick={() => setShowSolutions(!showSolutions)}
-              className="px-6 py-2 bg-white dark:bg-darkcard border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-            >
-              {showSolutions ? 'Hide Solutions' : 'Review Questions'}
-            </button>
-            <Link to="/setup" className="px-6 py-2 bg-primary text-white rounded-lg font-medium shadow-md hover:bg-blue-700 flex items-center transition">
-              <RotateCcw size={18} className="mr-2" /> Take Another
-            </Link>
-            <Link to="/" className="px-6 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-lg font-medium shadow-md hover:bg-gray-900 dark:hover:bg-gray-600 flex items-center transition">
-              <Home size={18} className="mr-2" /> Home
-            </Link>
+      <div className="relative z-10 max-w-6xl mx-auto px-4 py-12">
+        {/* Header Card */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={`relative bg-gradient-to-r ${grade.gradient} rounded-3xl shadow-2xl overflow-hidden mb-8 p-12`}>
+          <div className="absolute inset-0 opacity-20"><div style={{ backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`, backgroundSize: '20px 20px' }} className="absolute inset-0" /></div>
+          <div className="relative text-center text-white">
+            <div className="text-7xl mb-4">{grade.emoji}</div>
+            <h1 className="text-5xl font-black mb-3">{grade.text}</h1>
+            <p className="text-2xl font-bold mb-2">You scored {result.percent.toFixed(1)}%</p>
+            <p className="text-xl opacity-90">{result.category} • {result.questionCount} Questions</p>
           </div>
         </motion.div>
 
-        {showSolutions && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-6"
-          >
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Detailed Solutions</h2>
-            {result.questions.map((q: any, i) => {
-              // Normalize data access to handle both Question and QuizQuestion types
-              const ua = result.userAnswers[i];
-              const userSelected = ua.selectedOption || ua.selectedAnswer;
-              const timeSpent = ua.timeSpentSeconds || ua.timeSpent || 0;
-
-              const options = q.options || q.all_answers || [];
-              const correctAns = q.correctAnswer || q.correct_answer;
-
-              const isCorrect = userSelected === correctAns;
-
-              return (
-                <div key={i} className={`bg-white dark:bg-darkcard p-6 rounded-xl border-l-4 shadow-sm ${isCorrect ? 'border-green-500' : userSelected ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
-                  <div className="flex justify-between mb-2">
-                    <span className="font-bold text-gray-400 dark:text-gray-500">Question {i + 1}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Time: {timeSpent}s</span>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4" dangerouslySetInnerHTML={{ __html: q.question }} />
-
-                  <div className="grid gap-2">
-                    {options.map((ans: string, idx: number) => {
-                      const isSelected = userSelected === ans;
-                      const isActualCorrect = ans === correctAns;
-
-                      let bgClass = 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300';
-                      if (isActualCorrect) bgClass = 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-900/50 text-green-800 dark:text-green-300 font-bold';
-                      else if (isSelected) bgClass = 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-300';
-
-                      return (
-                        <div key={idx} className={`p-3 rounded-lg border ${bgClass} flex justify-between items-center transition`}>
-                          <span dangerouslySetInnerHTML={{ __html: ans }} />
-                          {isActualCorrect && <CheckCircle size={18} className="text-green-600 dark:text-green-400" />}
-                          {isSelected && !isActualCorrect && <XCircle size={18} className="text-red-600 dark:text-red-400" />}
-                        </div>
-                      );
-                    })}
-                  </div>
+        {/* Stats Grid */}
+        <div className="grid md:grid-cols-2 gap-8 mb-8">
+          {/* Chart */}
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-xl">
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 flex items-center gap-2"><Target className="w-6 h-6 text-purple-600" /> Performance</h3>
+            <div className="h-72 relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                    {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#1F2937', borderRadius: '12px', border: 'none', color: '#fff', fontWeight: 'bold' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <div className="text-5xl font-black bg-gradient-to-br from-purple-600 to-pink-600 bg-clip-text text-transparent">{result.score}</div>
+                  <div className="text-lg text-gray-500 dark:text-gray-400">/ {result.questions.length}</div>
                 </div>
-              );
-            })}
+              </div>
+            </div>
           </motion.div>
-        )}
 
+          {/* Stats */}
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-xl">
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6">Detailed Stats</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-6 rounded-2xl border border-green-200 dark:border-green-900/30">
+                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400 mb-2" />
+                <div className="text-4xl font-black bg-gradient-to-br from-green-600 to-emerald-600 bg-clip-text text-transparent mb-1">{result.correct}</div>
+                <div className="text-sm font-bold text-gray-700 dark:text-gray-300">Correct</div>
+              </div>
+              <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 p-6 rounded-2xl border border-red-200 dark:border-red-900/30">
+                <XCircle className="w-8 h-8 text-red-600 dark:text-red-400 mb-2" />
+                <div className="text-4xl font-black bg-gradient-to-br from-red-600 to-pink-600 bg-clip-text text-transparent mb-1">{result.wrong}</div>
+                <div className="text-sm font-bold text-gray-700 dark:text-gray-300">Wrong</div>
+              </div>
+              <div className="bg-gradient-to-br from-gray-100 to-slate-100 dark:from-gray-800 dark:to-slate-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700">
+                <AlertCircle className="w-8 h-8 text-gray-600 dark:text-gray-400 mb-2" />
+                <div className="text-4xl font-black text-gray-900 dark:text-white mb-1">{result.unattempted}</div>
+                <div className="text-sm font-bold text-gray-700 dark:text-gray-300">Skipped</div>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 p-6 rounded-2xl border border-blue-200 dark:border-blue-900/30">
+                <Clock className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-2" />
+                <div className="text-4xl font-black bg-gradient-to-br from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">{(result.durationSeconds / 60).toFixed(1)}</div>
+                <div className="text-sm font-bold text-gray-700 dark:text-gray-300">Minutes</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Actions */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-wrap justify-center gap-4 mb-8">
+          <button onClick={() => setShowSolutions(!showSolutions)} className="px-8 py-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-2 border-purple-200 dark:border-purple-800 text-gray-900 dark:text-white font-bold rounded-xl shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition flex items-center gap-2">
+            <Sparkles className="w-5 h-5" /> {showSolutions ? 'Hide' : 'Review'} Questions
+          </button>
+          <Link to="/setup" className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl shadow-xl hover:shadow-2xl transition flex items-center gap-2">
+            <RotateCcw className="w-5 h-5" /> Take Another
+          </Link>
+          <Link to="/" className="px-8 py-4 bg-gradient-to-r from-gray-800 to-gray-900 dark:from-gray-700 dark:to-gray-800 text-white font-bold rounded-xl shadow-xl hover:shadow-2xl transition flex items-center gap-2">
+            <Home className="w-5 h-5" /> Home
+          </Link>
+        </motion.div>
+
+        {/* Solutions */}
+        <AnimatePresence>
+          {showSolutions && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-6">
+              <div className="flex items-center gap-3"><Trophy className="w-8 h-8 text-yellow-500" /><h2 className="text-3xl font-black text-gray-900 dark:text-white">Solutions</h2></div>
+              {result.questions.map((q: any, i) => {
+                const ua = result.userAnswers[i];
+                const userSelected = ua.selectedOption || ua.selectedAnswer;
+                const timeSpent = ua.timeSpentSeconds || ua.timeSpent || 0;
+                const options = q.options || q.all_answers || [];
+                const correctAns = q.correctAnswer || q.correct_answer;
+                const isCorrect = userSelected === correctAns;
+
+                return (
+                  <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className={`bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-8 rounded-3xl border-l-4 shadow-xl ${isCorrect ? 'border-green-500' : userSelected ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="text-lg font-bold text-gray-400">Question {i + 1}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500 flex items-center gap-1"><Clock size={14} /> {timeSpent}s</span>
+                        {isCorrect && <CheckCircle className="w-6 h-6 text-green-500" />}
+                        {!isCorrect && userSelected && <XCircle className="w-6 h-6 text-red-500" />}
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6" dangerouslySetInnerHTML={{ __html: q.question }} />
+                    <div className="grid gap-3">
+                      {options.map((ans: string, idx: number) => {
+                        const isSelected = userSelected === ans;
+                        const isActualCorrect = ans === correctAns;
+                        let bgClass = 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700';
+                        if (isActualCorrect) bgClass = 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border-green-300 dark:border-green-700 shadow-md';
+                        else if (isSelected) bgClass = 'bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/30 dark:to-pink-900/30 border-red-300 dark:border-red-700 shadow-md';
+
+                        return (
+                          <div key={idx} className={`p-4 rounded-xl border-2 ${bgClass} flex justify-between items-center transition-all`}>
+                            <span className="font-medium text-gray-900 dark:text-white" dangerouslySetInnerHTML={{ __html: ans }} />
+                            {isActualCorrect && <CheckCircle size={20} className="text-green-600 dark:text-green-400" />}
+                            {isSelected && !isActualCorrect && <XCircle size={20} className="text-red-600 dark:text-red-400" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

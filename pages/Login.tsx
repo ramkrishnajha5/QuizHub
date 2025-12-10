@@ -2,105 +2,118 @@ import React, { useState } from 'react';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '../utils/firebase';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Mail, Lock, Sparkles, LogIn, Chrome } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/');
     } catch (err: any) {
-      setError("Invalid credentials or mock mode active. (Check console)");
-      console.error(err);
+      setError("Invalid credentials. Please check your email and password.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogle = async () => {
+    setLoading(true);
+    setError('');
     try {
       await signInWithPopup(auth, googleProvider);
       navigate('/');
     } catch (err) {
-      setError("Google sign-in failed.");
+      setError("Google sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-darkbg py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <div className="max-w-md w-full space-y-8 bg-white dark:bg-darkcard p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">Sign in to QuizHub</h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Or <Link to="/signup" className="font-medium text-primary hover:text-blue-500">create a new account</Link>
-          </p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950 py-12 px-4">
+      {/* Animated Background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 20, repeat: Infinity }} className="absolute top-20 right-0 w-96 h-96 bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-full blur-3xl" />
+        <motion.div animate={{ scale: [1, 1.3, 1], rotate: [0, -90, 0], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 25, repeat: Infinity }} className="absolute bottom-20 left-0 w-96 h-96 bg-gradient-to-br from-cyan-500/30 to-blue-500/30 rounded-full blur-3xl" />
+      </div>
 
-        {!isFirebaseConfigured() && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4">
-            <div className="flex">
-              <AlertTriangle className="h-5 w-5 text-yellow-400" />
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  Firebase config is missing. Auth will fail. Add keys in <code>constants.ts</code>.
-                </p>
+      {/* Card */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 w-full max-w-md">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-10 rounded-3xl shadow-2xl border border-white/20">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full mb-6 shadow-xl">
+              <Sparkles className="w-5 h-5 text-white" />
+              <span className="text-white font-bold text-lg">QuizHub</span>
+            </div>
+            <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2">Welcome Back!</h2>
+            <p className="text-gray-600 dark:text-gray-400">Sign in to continue learning</p>
+          </div>
+
+          {/* Firebase Warning */}
+          {!isFirebaseConfigured() && (
+            <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-xl">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Firebase config missing. Add keys in <code className="font-mono bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">constants.ts</code></p>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="rounded-md shadow-sm -space-y-px">
+          {/* Form */}
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <input
-                type="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-800 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input type="email" required placeholder="your.email@example.com" className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-2 border-purple-200 dark:border-purple-800 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 dark:text-white transition font-medium" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
             </div>
+
             <div>
-              <input
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-800 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input type="password" required placeholder="••••••••" className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-2 border-purple-200 dark:border-purple-800 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 dark:text-white transition font-medium" value={password} onChange={(e) => setPassword(e.target.value)} />
+              </div>
             </div>
-          </div>
 
-          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl p-3">
+                <p className="text-red-700 dark:text-red-300 text-sm font-medium">{error}</p>
+              </div>
+            )}
 
-          <div>
-            <button type="submit" className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-              Sign in
+            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white font-bold rounded-xl shadow-xl hover:shadow-2xl transition disabled:opacity-50">
+              {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Signing in...</> : <><LogIn className="w-5 h-5" /> Sign In</>}
             </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-gray-600" /></div>
+            <div className="relative flex justify-center text-sm"><span className="px-4 bg-white/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 font-medium">Or continue with</span></div>
           </div>
-        </form>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-gray-600"></div></div>
-          <div className="relative flex justify-center text-sm"><span className="px-2 bg-white dark:bg-darkcard text-gray-500 dark:text-gray-400">Or continue with</span></div>
+          {/* Google */}
+          <button onClick={handleGoogle} disabled={loading} className="w-full flex items-center justify-center gap-3 py-3 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition shadow-sm disabled:opacity-50">
+            <Chrome className="w-5 h-5 text-blue-600" /> <span className="text-gray-700 dark:text-gray-200">Continue with Google</span>
+          </button>
+
+          {/* Sign Up Link */}
+          <p className="text-center mt-6 text-gray-600 dark:text-gray-400">Don't have an account? <Link to="/signup" className="font-bold text-purple-600 dark:text-purple-400 hover:underline">Sign Up</Link></p>
         </div>
-
-        <button onClick={handleGoogle} className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition">
-          Google
-        </button>
-
-        <div className="text-center mt-4">
-          <Link to="/signup" className="text-sm text-primary hover:underline">
-            Don't have an account? Sign Up
-          </Link>
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
