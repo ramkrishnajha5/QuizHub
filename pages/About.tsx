@@ -60,15 +60,15 @@ const About: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="text-6xl md:text-7xl font-black mb-8">
-              <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-8 px-2">
+              <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent break-words">
                 Democratizing
               </span>
               <br />
               <span className="text-gray-900 dark:text-white">Knowledge</span>
             </h1>
 
-            <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-700 dark:text-gray-300 leading-relaxed max-w-3xl mx-auto px-4">
               QuizHub is built on a simple mission: high-quality educational tools should be <span className="font-bold text-transparent bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">free, accessible, and enjoyable</span> for everyone, everywhere.
             </p>
           </motion.div>

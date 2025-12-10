@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Rocket, Zap, BookOpen, Target, Trophy, ArrowRight, Play } from 'lucide-react';
+import { Sparkles, Rocket, Zap, BookOpen, Target, Trophy, ArrowRight, Play, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 
 const Home: React.FC = () => {
+  const { currentUser } = useAuth();
+
   const features = [
     {
       icon: Zap,
@@ -119,13 +122,23 @@ const Home: React.FC = () => {
               </motion.div>
 
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  to="/study"
-                  className="inline-flex items-center gap-3 px-8 py-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-2 border-purple-200 dark:border-purple-800 text-gray-900 dark:text-white rounded-2xl font-bold text-lg shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all"
-                >
-                  <BookOpen className="w-6 h-6" />
-                  Explore Resources
-                </Link>
+                {currentUser ? (
+                  <Link
+                    to="/study"
+                    className="inline-flex items-center gap-3 px-8 py-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-2 border-purple-200 dark:border-purple-800 text-gray-900 dark:text-white rounded-2xl font-bold text-lg shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all"
+                  >
+                    <BookOpen className="w-6 h-6" />
+                    Explore Resources
+                  </Link>
+                ) : (
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center gap-3 px-8 py-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-2 border-purple-200 dark:border-purple-800 text-gray-900 dark:text-white rounded-2xl font-bold text-lg shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all"
+                  >
+                    <UserPlus className="w-6 h-6" />
+                    Create an Account
+                  </Link>
+                )}
               </motion.div>
             </div>
           </motion.div>
