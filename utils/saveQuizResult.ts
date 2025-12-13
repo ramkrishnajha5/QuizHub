@@ -24,16 +24,9 @@ export interface QuizSummary {
     percent: number;
     finishedAt: number;
     attemptId: string; // Reference to the full attempt
+    totalQuestions?: number;
 }
 
-export interface QuizSummary {
-    categoryName: string;
-    difficulty: string;
-    score: number;
-    percent: number;
-    finishedAt: number;
-    attemptId: string; // Reference to the full attempt
-}
 
 /**
  * Save quiz result to Firestore and trim old records
