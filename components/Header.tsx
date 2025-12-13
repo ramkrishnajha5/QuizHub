@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../utils/firebase';
-import { Menu, X, User, LogOut, Zap, Sun, Moon } from 'lucide-react';
+import { Menu, X, User, LogOut, Zap, Sun, Moon, Smartphone, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuiz } from '../contexts/QuizContext';
 
@@ -65,6 +65,11 @@ const Header: React.FC = () => {
             <Link to="/study" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/study')); }} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">Study</Link>
             <Link to="/about" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/about')); }} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">About Us</Link>
             <Link to="/contact" onClick={(e) => { e.preventDefault(); attemptNavigation(() => navigate('/contact')); }} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium transition">Contact Us</Link>
+
+            <a href="https://github.com/ramkrishnajha5/QuizHub/releases/download/v2.2.0/QuizHub.apk" className="lg:hidden inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5">
+              <Download size={16} />
+              <span>App</span>
+            </a>
           </nav>
 
           {/* Desktop Right Section */}
@@ -173,6 +178,13 @@ const Header: React.FC = () => {
                   <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block text-center bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700">Login</Link>
                 </div>
               )}
+
+              <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
+                <a href="https://github.com/ramkrishnajha5/QuizHub/releases/download/v2.2.0/QuizHub.apk" className="flex items-center justify-center gap-3 w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all">
+                  <Smartphone size={20} />
+                  <span>Download Android App</span>
+                </a>
+              </div>
             </div>
           </motion.div>
         )}
