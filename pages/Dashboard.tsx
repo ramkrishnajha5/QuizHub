@@ -6,12 +6,12 @@ import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { Play, Award, TrendingUp, Sparkles, ChevronRight, BookOpen, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getQuizState } from '../utils/idb';
-import { QuizAttempt } from '../types';
 import DashboardRecentQuizzes from '../components/DashboardRecentQuizzes';
+import { getRecentQuizSummaries, QuizSummary } from '../utils/saveQuizResult';
 
 const Dashboard: React.FC = () => {
     const [user, loading] = useAuthState(auth);
-    const [recentAttempts, setRecentAttempts] = useState<QuizAttempt[]>([]);
+    const [recentSummaries, setRecentSummaries] = useState<any[]>([]);
     const [savedState, setSavedState] = useState<any>(null);
     const navigate = useNavigate();
 
@@ -25,9 +25,9 @@ const Dashboard: React.FC = () => {
         if (user) {
             const fetchHistory = async () => {
                 try {
-                    const q = query(collection(db, `users/${user.uid}/attempts`), orderBy('startedAt', 'desc'), limit(5));
-                    const querySnapshot = await getDocs(q);
-                    setRecentAttempts(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuizAttempt)));
+                    // Fetch from quizSummaries collection which matches saveQuizResult storage
+                    const summaries = await getRecentQuizSummaries(user.uid, 20);
+                    setRecentSummaries(summaries);
                 } catch (e) {
                     console.error("Could not fetch history:", e);
                 }
@@ -56,10 +56,15 @@ const Dashboard: React.FC = () => {
         );
     }
 
+    // Calculate best score from summaries - handle empty array gracefully
+    const bestScore = recentSummaries.length > 0
+        ? Math.max(...recentSummaries.map(s => s.percent || 0)).toFixed(0) + '%'
+        : '0%';
+
     const stats = [
         { icon: Play, title: "Start Quiz", description: "Begin a new challenge", gradient: "from-blue-400 to-cyan-500", action: () => navigate('/setup') },
-        { icon: Award, title: "Best Score", value: recentAttempts.length > 0 ? Math.max(...recentAttempts.map(a => a.percent)).toFixed(0) + '%' : '0%', description: "Your top performance", gradient: "from-yellow-400 to-orange-500" },
-        { icon: TrendingUp, title: "Total Quizzes", value: recentAttempts.length.toString(), description: "Tests completed", gradient: "from-green-400 to-emerald-500" }
+        { icon: Award, title: "Best Score", value: bestScore, description: "Your top performance", gradient: "from-yellow-400 to-orange-500" },
+        { icon: TrendingUp, title: "Total Quizzes", value: recentSummaries.length.toString(), description: "Tests completed", gradient: "from-green-400 to-emerald-500" }
     ];
 
     return (
