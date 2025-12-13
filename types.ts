@@ -38,6 +38,7 @@ export interface QuizAttempt {
   categoryId?: number;
   category: string; // This is categoryName in saveQuizResult
   categoryName?: string;
+  difficulty?: string; // easy, medium, hard, or mixed
   questionCount: number; // Number of questions (10, 15, 20, 25)
   startedAt: number;
   endedAt?: number;
