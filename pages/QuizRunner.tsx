@@ -225,18 +225,21 @@ const QuizRunner: React.FC = () => {
     return () => clearInterval(timer);
   }, [loading, currentQuestionIndex, isSubmitting]);
 
-  // Autosave
+  // Autosave - include category info for resume banner on Dashboard
   useEffect(() => {
     const saver = setInterval(() => {
-      if (!loading && !isSubmitting) {
+      if (!loading && !isSubmitting && questions.length > 0) {
         saveQuizState({
           status: 'active',
+          category: questions[0]?.category || 'General',
+          categoryId: categoryId,
+          questionCount: questionCount,
           ...stateRef.current
         });
       }
     }, 5000);
     return () => clearInterval(saver);
-  }, [loading, isSubmitting]);
+  }, [loading, isSubmitting, questions, categoryId, questionCount]);
 
   // Keyboard Navigation
   useEffect(() => {
@@ -310,12 +313,17 @@ const QuizRunner: React.FC = () => {
       timeSpentSeconds: ua.timeSpent
     }));
 
+    // Determine quiz difficulty - if all questions have same difficulty use that, otherwise 'mixed'
+    const difficulties = [...new Set(questions.map(q => String(q.difficulty || 'mixed')))];
+    const quizDifficulty = difficulties.length === 1 ? String(difficulties[0]) : 'mixed';
+
     const attemptData: QuizAttempt = {
       id: uuidv4(),
       userId: currentUser?.uid || 'guest',
       categoryId: categoryId,
       category: questions[0]?.category || 'General',
       categoryName: questions[0]?.category || 'General',
+      difficulty: quizDifficulty,
       questionCount: questionCount,
       startedAt: quizStartedAt,
       finishedAt: endedAt,
