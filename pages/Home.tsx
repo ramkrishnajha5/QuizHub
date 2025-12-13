@@ -39,36 +39,10 @@ const Home: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950 overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, 90, 0],
-            opacity: [0.3, 0.5, 0.3]
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            rotate: [0, -90, 0],
-            opacity: [0.3, 0.5, 0.3]
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-cyan-500/30 to-blue-500/30 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.1, 1],
-            y: [0, -50, 0],
-            opacity: [0.2, 0.4, 0.2]
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-full blur-3xl"
-        />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+      {/* Subtle Background Pattern - Hidden on Mobile */}
+      <div className="fixed inset-0 pointer-events-none opacity-30 dark:opacity-20 hidden md:block">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50 dark:from-blue-950/20 dark:via-purple-950/10 dark:to-pink-950/20" />
       </div>
 
       {/* Hero Section */}
@@ -85,7 +59,7 @@ const Home: React.FC = () => {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/20 dark:border-gray-700/50 mb-8"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 mb-8"
             >
               <Sparkles className="w-5 h-5 text-yellow-500" />
               <span className="text-sm font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
@@ -113,7 +87,7 @@ const Home: React.FC = () => {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link
                   to="/setup"
-                  className="group inline-flex items-center gap-3 px-8 py-5 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white rounded-2xl font-bold text-lg shadow-2xl hover:shadow-purple-500/50 transition-all"
+                  className="group inline-flex items-center gap-3 px-8 py-5 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all"
                 >
                   <Play className="w-6 h-6" fill="currentColor" />
                   Start Quiz Now
@@ -125,7 +99,7 @@ const Home: React.FC = () => {
                 {currentUser ? (
                   <Link
                     to="/study"
-                    className="inline-flex items-center gap-3 px-8 py-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-2 border-purple-200 dark:border-purple-800 text-gray-900 dark:text-white rounded-2xl font-bold text-lg shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all"
+                    className="inline-flex items-center gap-3 px-8 py-5 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all"
                   >
                     <BookOpen className="w-6 h-6" />
                     Explore Resources
@@ -133,7 +107,7 @@ const Home: React.FC = () => {
                 ) : (
                   <Link
                     to="/signup"
-                    className="inline-flex items-center gap-3 px-8 py-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border-2 border-purple-200 dark:border-purple-800 text-gray-900 dark:text-white rounded-2xl font-bold text-lg shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all"
+                    className="inline-flex items-center gap-3 px-8 py-5 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all"
                   >
                     <UserPlus className="w-6 h-6" />
                     Create an Account
@@ -171,7 +145,7 @@ const Home: React.FC = () => {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
                 whileHover={{ y: -8, scale: 1.02 }}
-                className="group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-8 rounded-3xl border border-white/20 dark:border-gray-700/50 shadow-xl hover:shadow-2xl transition-all"
+                className="group relative bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-2xl transition-all"
               >
                 {/* Gradient Border Effect on Hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity`} />

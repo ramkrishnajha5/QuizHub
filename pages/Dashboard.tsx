@@ -63,11 +63,10 @@ const Dashboard: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
-            {/* Animated Background */}
-            <div className="fixed inset-0 pointer-events-none">
-                <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 20, repeat: Infinity }} className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl" />
-                <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 25, repeat: Infinity }} className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl" />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+            {/* Subtle Background Pattern - Hidden on Mobile */}
+            <div className="fixed inset-0 pointer-events-none opacity-30 dark:opacity-20 hidden md:block">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50 dark:from-blue-950/20 dark:via-purple-950/10 dark:to-pink-950/20" />
             </div>
 
             <div className="relative z-10 max-w-7xl mx-auto px-4 py-12">
@@ -81,17 +80,19 @@ const Dashboard: React.FC = () => {
 
                 {/* Resume Banner */}
                 {savedState && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mb-8 relative bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 rounded-3xl p-8 overflow-hidden shadow-2xl">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mb-8 relative bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 rounded-3xl p-6 md:p-8 overflow-hidden shadow-2xl">
                         <div className="absolute inset-0 opacity-20"><div style={{ backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`, backgroundSize: '20px 20px' }} className="absolute inset-0" /></div>
-                        <div className="relative flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <Zap className="w-12 h-12 text-white" />
+                        <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="flex items-center gap-4 w-full md:w-auto">
+                                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
+                                    <Zap className="w-8 h-8 md:w-12 md:h-12 text-white" />
+                                </div>
                                 <div>
-                                    <h3 className="text-2xl font-black text-white mb-1">Resume Quiz</h3>
-                                    <p className="text-white/90">Continue your {savedState.category || 'Mix'} quiz</p>
+                                    <h3 className="text-xl md:text-2xl font-black text-white mb-1">Resume Quiz</h3>
+                                    <p className="text-white/90 text-sm md:text-base">Continue your {savedState.category || 'Mix'} quiz</p>
                                 </div>
                             </div>
-                            <button onClick={() => navigate('/quiz')} className="px-8 py-4 bg-white text-purple-600 rounded-xl font-bold shadow-xl hover:shadow-2xl transition flex items-center gap-2">
+                            <button onClick={() => navigate('/quiz')} className="w-full md:w-auto px-8 py-4 bg-white text-purple-600 rounded-xl font-bold shadow-xl hover:shadow-2xl transition flex items-center justify-center gap-2">
                                 Continue <ChevronRight />
                             </button>
                         </div>

@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { User, Edit2, Save, Calendar, Phone, Mail, Loader, ArrowRight, Sparkles, Shield, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Alert from '../components/Alert';
+import { Link } from 'react-router-dom';
 
 const Profile: React.FC = () => {
     const { currentUser, updateUserProfile } = useAuth();
@@ -84,11 +85,10 @@ const Profile: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-indigo-950 dark:to-purple-950">
-            {/* Animated Background */}
-            <div className="fixed inset-0 pointer-events-none">
-                <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 20, repeat: Infinity }} className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-pink-500/20 to-orange-500/20 rounded-full blur-3xl" />
-                <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 25, repeat: Infinity }} className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl" />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+            {/* Subtle Background Pattern - Hidden on Mobile */}
+            <div className="fixed inset-0 pointer-events-none opacity-30 dark:opacity-20 hidden md:block">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50 dark:from-blue-950/20 dark:via-purple-950/10 dark:to-pink-950/20" />
             </div>
 
             <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
@@ -170,17 +170,17 @@ const Profile: React.FC = () => {
                 </motion.div>
 
                 {/* Dashboard CTA */}
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="relative bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 rounded-3xl p-8 shadow-2xl overflow-hidden">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="relative bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden">
                     <div className="absolute inset-0 opacity-20"><div style={{ backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`, backgroundSize: '20px 20px' }} className="absolute inset-0" /></div>
-                    <div className="relative flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
+                    <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4 text-center md:text-left">
                             <div className="text-5xl">📊</div>
                             <div>
                                 <h3 className="text-2xl font-black text-white mb-1">View Performance</h3>
                                 <p className="text-white/90">Check your stats on the dashboard</p>
                             </div>
                         </div>
-                        <a href="/#/dashboard" className="px-8 py-4 bg-white text-blue-600 rounded-xl font-bold shadow-xl hover:shadow-2xl transition flex items-center gap-2">Go to Dashboard <ArrowRight /></a>
+                        <Link to="/dashboard" className="w-full md:w-auto px-8 py-4 bg-white text-blue-600 rounded-xl font-bold shadow-xl hover:shadow-2xl transition flex items-center justify-center gap-2">Go to Dashboard <ArrowRight /></Link>
                     </div>
                 </motion.div>
             </div >
