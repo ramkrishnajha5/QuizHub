@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.icons8.com/fluency/96/quiz.png" alt="QuizHub Logo" width="80"/>
+  <img src="https://play-lh.googleusercontent.com/PU-7DBlRewmHEit3ONwV1zSMAkbw26YAfnhJuw6TXlr5PP1ZIJugRm8InsSDjDqvQg" alt="QuizHub Logo" width="80"/>
 </p>
 
 <h1 align="center">🎯 QuizHub</h1>
@@ -194,17 +194,6 @@ Download the Android APK directly:
 
 ---
 
-## 🎨 Screenshots
-
-| Home Page | Quiz Setup | Active Quiz |
-|-----------|------------|-------------|
-| Landing page with features | Category & question count selection | Question with timer and palette |
-
-| Results | Dashboard | Study Resources |
-|---------|-----------|-----------------|
-| Score breakdown with pie chart | Stats and quiz history | Book discovery by subject |
-
----
 
 ## ⌨️ Keyboard Shortcuts (During Quiz)
 
