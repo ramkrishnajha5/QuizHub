@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BookOpen, Loader, AlertCircle, ExternalLink, BookmarkPlus, BookmarkCheck } from 'lucide-react';
+import { ArrowLeft, BookOpen, Loader, AlertCircle, ExternalLink, BookmarkPlus, BookmarkCheck, Sparkles, Library, ArrowRight } from 'lucide-react';
 import { Book, searchBooksBySubject } from '../services/googleBooks';
 import { saveBookForUser, removeBookForUser, isBookSaved } from '../services/savedBooksService';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +9,8 @@ interface Category {
     key: string;
     name: string;
     icon: string;
-    color: string;
+    gradient: string;
+    iconBg: string;
     subtopics: Subtopic[];
 }
 
@@ -23,7 +24,8 @@ const CATEGORIES: Category[] = [
         key: 'science',
         name: 'Science',
         icon: '🔬',
-        color: 'bg-gradient-to-br from-blue-500 to-blue-700',
+        gradient: 'from-cyan-400 via-blue-500 to-indigo-600',
+        iconBg: 'bg-gradient-to-br from-cyan-400 to-blue-600',
         subtopics: [
             { key: 'science-physics', name: 'Physics' },
             { key: 'science-chemistry', name: 'Chemistry' },
@@ -35,7 +37,8 @@ const CATEGORIES: Category[] = [
         key: 'cs',
         name: 'Computer Science',
         icon: '💻',
-        color: 'bg-gradient-to-br from-purple-500 to-purple-700',
+        gradient: 'from-purple-400 via-pink-500 to-rose-500',
+        iconBg: 'bg-gradient-to-br from-purple-500 to-pink-600',
         subtopics: [
             { key: 'cs-languages', name: 'Programming Languages' },
             { key: 'cs-dsa', name: 'Data Structures & Algorithms' },
@@ -50,7 +53,8 @@ const CATEGORIES: Category[] = [
         key: 'arts',
         name: 'Arts & Humanities',
         icon: '🎨',
-        color: 'bg-gradient-to-br from-pink-500 to-pink-700',
+        gradient: 'from-pink-400 via-rose-500 to-red-500',
+        iconBg: 'bg-gradient-to-br from-pink-500 to-rose-600',
         subtopics: [
             { key: 'arts-history', name: 'History' },
             { key: 'arts-geography', name: 'Geography' },
@@ -65,7 +69,8 @@ const CATEGORIES: Category[] = [
         key: 'commerce',
         name: 'Commerce & Business',
         icon: '💼',
-        color: 'bg-gradient-to-br from-green-500 to-green-700',
+        gradient: 'from-green-400 via-emerald-500 to-teal-500',
+        iconBg: 'bg-gradient-to-br from-green-500 to-emerald-600',
         subtopics: [
             { key: 'commerce-accounting', name: 'Accounting' },
             { key: 'commerce-business', name: 'Business Studies' },
@@ -79,7 +84,8 @@ const CATEGORIES: Category[] = [
         key: 'gk',
         name: 'General Knowledge',
         icon: '🌍',
-        color: 'bg-gradient-to-br from-orange-500 to-orange-700',
+        gradient: 'from-yellow-400 via-orange-500 to-pink-500',
+        iconBg: 'bg-gradient-to-br from-yellow-500 to-orange-600',
         subtopics: [
             { key: 'gk-world-affairs', name: 'World Affairs & Current Events' },
             { key: 'gk-indian-history', name: 'Indian History' },
@@ -97,7 +103,8 @@ const CATEGORIES: Category[] = [
         key: 'reasoning',
         name: 'Reasoning',
         icon: '🧩',
-        color: 'bg-gradient-to-br from-teal-500 to-cyan-700',
+        gradient: 'from-indigo-400 via-purple-500 to-pink-500',
+        iconBg: 'bg-gradient-to-br from-indigo-500 to-purple-600',
         subtopics: [
             { key: 'reasoning-logical', name: 'Logical Reasoning' },
             { key: 'reasoning-verbal', name: 'Verbal Reasoning' },
@@ -139,7 +146,6 @@ const Study: React.FC = () => {
             setBooks(results);
 
             if (currentUser) {
-                // Check which books are already saved
                 const savedIds = new Set<string>();
                 for (const book of results) {
                     const saved = await isBookSaved(currentUser.uid, book.id);
@@ -208,77 +214,124 @@ const Study: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-darkbg py-8 px-4 transition-colors duration-200">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+            {/* Subtle Background Pattern - Hidden on Mobile */}
+            <div className="fixed inset-0 pointer-events-none opacity-30 dark:opacity-20 hidden md:block">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50 dark:from-blue-950/20 dark:via-purple-950/10 dark:to-pink-950/20" />
+            </div>
+
+            <div className="relative z-10 max-w-7xl mx-auto px-4 py-12">
                 <AnimatePresence mode="wait">
                     {!selectedCategory ? (
-                        // Main Categories View
+                        // Main Categories View - Hero Style
                         <motion.div
                             key="categories"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                         >
-                            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">Study Resources</h1>
-                            <p className="text-gray-600 dark:text-gray-400 mb-8">
-                                Explore books across different subjects from Google Books
-                            </p>
+                            {/* Hero Header */}
+                            <div className="text-center mb-16">
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 mb-8"
+                                >
+                                    <Sparkles className="w-5 h-5 text-yellow-500" />
+                                    <span className="text-sm font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
+                                        Powered by Google Books
+                                    </span>
+                                </motion.div>
 
+                                <h1 className="text-5xl md:text-7xl font-black mb-6">
+                                    <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
+                                        Study
+                                    </span>
+                                    <br />
+                                    <span className="text-gray-900 dark:text-white">
+                                        Resources
+                                    </span>
+                                </h1>
+
+                                <p className="text-xl text-gray-700 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                                    Explore millions of books across <span className="font-bold text-transparent bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">60+ topics</span> from 6 major categories
+                                </p>
+                            </div>
+
+                            {/* Categories Grid */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {CATEGORIES.map((category) => (
+                                {CATEGORIES.map((category, index) => (
                                     <motion.button
                                         key={category.key}
                                         onClick={() => handleCategoryClick(category)}
-                                        whileHover={{ scale: 1.05, y: -5 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        className={`relative overflow-hidden rounded-2xl p-8 text-left shadow-lg hover:shadow-xl transition-shadow ${category.color} group`}
+                                        initial={{ opacity: 0, y: 30 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        whileHover={{ y: -8, scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        className="group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-8 rounded-3xl border border-white/20 shadow-xl hover:shadow-2xl transition-all text-left overflow-hidden"
                                     >
-                                        <div className="relative z-10">
-                                            <div className="text-5xl mb-4">{category.icon}</div>
-                                            <h3 className="text-2xl font-bold text-white mb-2">{category.name}</h3>
-                                            <p className="text-white/80 text-sm">
-                                                {category.subtopics.length} topics available
-                                            </p>
+                                        {/* Gradient Border Effect on Hover */}
+                                        <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity`} />
+
+                                        {/* Icon */}
+                                        <div className={`relative w-16 h-16 ${category.iconBg} rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
+                                            <span className="text-3xl">{category.icon}</span>
                                         </div>
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                        {/* Content */}
+                                        <h3 className="relative text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                                            {category.name}
+                                        </h3>
+                                        <p className="relative text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
+                                            {category.subtopics.length} topics available
+                                        </p>
+
+                                        {/* Explore Link */}
+                                        <div className="flex items-center gap-2 text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:gap-3 transition-all">
+                                            <span>Explore</span>
+                                            <ArrowRight className="w-4 h-4 text-purple-600 group-hover:translate-x-1 transition-transform" />
+                                        </div>
+
+                                        {/* Bottom Accent */}
+                                        <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${category.gradient} rounded-b-3xl transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left`} />
                                     </motion.button>
                                 ))}
                             </div>
                         </motion.div>
                     ) : !selectedSubtopic ? (
-                        // Subtopics View - MODERN REDESIGN
+                        // Subtopics View - Modern Design
                         <motion.div
                             key="subtopics"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                         >
-                            <button
+                            {/* Back Button */}
+                            <motion.button
                                 onClick={handleBack}
-                                className="flex items-center text-primary hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium mb-6 group transition-all"
+                                whileHover={{ x: -4 }}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-full shadow-lg border border-white/20 text-gray-700 dark:text-gray-300 font-medium mb-8 hover:shadow-xl transition-all"
                             >
-                                <ArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" size={20} />
+                                <ArrowLeft size={18} />
                                 Back to Categories
-                            </button>
+                            </motion.button>
 
                             {/* Header Section */}
-                            <div className="mb-10">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className={`${selectedCategory.color} w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shadow-lg`}>
-                                        {selectedCategory.icon}
-                                    </div>
-                                    <div>
-                                        <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white">
-                                            {selectedCategory.name}
-                                        </h1>
-                                        <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-                                            Explore {selectedCategory.subtopics.length} topics • Find books and resources
-                                        </p>
-                                    </div>
+                            <div className="text-center mb-12">
+                                <div className={`inline-flex items-center justify-center w-24 h-24 ${selectedCategory.iconBg} rounded-3xl shadow-2xl mb-6`}>
+                                    <span className="text-5xl">{selectedCategory.icon}</span>
                                 </div>
+
+                                <h1 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white mb-4">
+                                    {selectedCategory.name}
+                                </h1>
+                                <p className="text-xl text-gray-600 dark:text-gray-400">
+                                    Explore <span className="font-bold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">{selectedCategory.subtopics.length} topics</span> • Find books and resources
+                                </p>
                             </div>
 
-                            {/* Modern Grid Layout */}
+                            {/* Subtopics Grid */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {selectedCategory.subtopics.map((subtopic, index) => (
                                     <motion.button
@@ -289,23 +342,20 @@ const Study: React.FC = () => {
                                         transition={{ delay: index * 0.05 }}
                                         whileHover={{ y: -8, scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
-                                        className="relative group bg-white dark:bg-darkcard rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-transparent hover:border-primary/30"
+                                        className="group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-white/20 text-left"
                                     >
                                         {/* Gradient Overlay */}
-                                        <div className={`absolute inset-0 ${selectedCategory.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-
-                                        {/* Animated Corner Accent */}
-                                        <div className={`absolute top-0 right-0 w-24 h-24 ${selectedCategory.color} opacity-10 rounded-bl-full transform translate-x-12 -translate-y-12 group-hover:translate-x-8 group-hover:-translate-y-8 transition-transform duration-300`} />
+                                        <div className={`absolute inset-0 bg-gradient-to-br ${selectedCategory.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
 
                                         {/* Content */}
-                                        <div className="relative p-6 text-left h-full flex flex-col">
-                                            {/* Icon/Number Badge */}
-                                            <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${selectedCategory.color} text-white font-bold text-lg mb-4 shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                                        <div className="relative p-6 flex flex-col h-full">
+                                            {/* Number Badge */}
+                                            <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${selectedCategory.iconBg} text-white font-bold text-lg mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                                                 {index + 1}
                                             </div>
 
                                             {/* Title */}
-                                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-primary dark:group-hover:text-blue-400 transition-colors duration-300">
+                                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
                                                 {subtopic.name}
                                             </h3>
 
@@ -314,13 +364,11 @@ const Study: React.FC = () => {
                                                 Browse curated books and resources
                                             </p>
 
-                                            {/* Book Icon with Animation */}
-                                            <div className="flex items-center text-primary dark:text-blue-400 font-semibold text-sm group-hover:gap-2 gap-1 transition-all duration-300">
-                                                <BookOpen className="w-4 h-4 group-hover:animate-pulse" />
+                                            {/* Explore Link */}
+                                            <div className="flex items-center gap-2 text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                                <BookOpen className="w-4 h-4 text-purple-600" />
                                                 <span>Explore Books</span>
                                                 <motion.span
-                                                    className="inline-block"
-                                                    initial={{ x: 0 }}
                                                     animate={{ x: [0, 4, 0] }}
                                                     transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                                                 >
@@ -329,109 +377,135 @@ const Study: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Shine Effect on Hover */}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
+                                        {/* Bottom Accent */}
+                                        <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${selectedCategory.gradient} rounded-b-3xl transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left`} />
                                     </motion.button>
                                 ))}
                             </div>
                         </motion.div>
                     ) : (
-                        // Books View
+                        // Books View - Modern Design
                         <motion.div
                             key="books"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                         >
-                            <button
+                            {/* Back Button */}
+                            <motion.button
                                 onClick={handleBack}
-                                className="flex items-center text-primary hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium mb-4 group"
+                                whileHover={{ x: -4 }}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-full shadow-lg border border-white/20 text-gray-700 dark:text-gray-300 font-medium mb-8 hover:shadow-xl transition-all"
                             >
-                                <ArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" size={20} />
+                                <ArrowLeft size={18} />
                                 Back to Topics
-                            </button>
+                            </motion.button>
 
-                            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                                {getCurrentSubtopicName()}
-                            </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mb-8">
-                                Books from Google Books
-                            </p>
+                            {/* Header */}
+                            <div className="text-center mb-12">
+                                <div className={`inline-flex items-center justify-center w-20 h-20 ${selectedCategory.iconBg} rounded-2xl shadow-xl mb-6`}>
+                                    <Library className="w-10 h-10 text-white" />
+                                </div>
 
+                                <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4">
+                                    {getCurrentSubtopicName()}
+                                </h1>
+                                <p className="text-lg text-gray-600 dark:text-gray-400">
+                                    Discover books from <span className="font-bold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">Google Books</span>
+                                </p>
+                            </div>
+
+                            {/* Error State */}
                             {error && (
-                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl p-6 mb-8">
-                                    <div className="flex items-start">
-                                        <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 mr-3 flex-shrink-0 mt-0.5" />
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-red-50/80 dark:bg-red-900/20 backdrop-blur-xl border border-red-200 dark:border-red-800 rounded-2xl p-6 mb-8"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                                            <AlertCircle className="w-6 h-6 text-white" />
+                                        </div>
                                         <div>
-                                            <h3 className="font-semibold text-red-900 dark:text-red-200 mb-1">Error Loading Books</h3>
-                                            <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+                                            <h3 className="font-bold text-red-900 dark:text-red-200 text-lg mb-1">Error Loading Books</h3>
+                                            <p className="text-red-700 dark:text-red-300">{error}</p>
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             )}
 
+                            {/* Loading State */}
                             {loading && (
-                                <div className="flex items-center justify-center py-20">
-                                    <Loader className="animate-spin h-12 w-12 text-primary" />
+                                <div className="flex flex-col items-center justify-center py-20">
+                                    <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading books...</p>
                                 </div>
                             )}
 
+                            {/* Books Grid */}
                             {!loading && !error && books.length > 0 && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {books.map((book) => (
+                                    {books.map((book, index) => (
                                         <motion.div
                                             key={book.id}
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            className="bg-white dark:bg-darkcard rounded-xl shadow-md hover:shadow-xl transition-all border border-gray-200 dark:border-gray-700 overflow-hidden"
+                                            transition={{ delay: index * 0.05 }}
+                                            whileHover={{ y: -8 }}
+                                            className="group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-white/20"
                                         >
-                                            <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 overflow-hidden flex items-center justify-center">
+                                            {/* Book Cover */}
+                                            <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 overflow-hidden flex items-center justify-center">
                                                 {book.thumbnail ? (
                                                     <img
                                                         src={book.thumbnail}
                                                         alt={book.title}
-                                                        className="w-full h-full object-cover"
+                                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                                     />
                                                 ) : (
                                                     <BookOpen className="w-16 h-16 text-gray-400 dark:text-gray-600" />
                                                 )}
                                             </div>
-                                            <div className="p-4">
-                                                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 line-clamp-2">
+
+                                            {/* Book Info */}
+                                            <div className="p-5">
+                                                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 line-clamp-2 group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 group-hover:bg-clip-text group-hover:text-transparent transition-all">
                                                     {book.title}
                                                 </h3>
-                                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1 line-clamp-1">
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
                                                     {book.authors.join(', ') || 'Unknown Author'}
                                                 </p>
                                                 {book.description && (
-                                                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-3 line-clamp-2">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-4 line-clamp-2">
                                                         {book.description}
                                                     </p>
                                                 )}
+
+                                                {/* Actions */}
                                                 <div className="flex gap-2">
                                                     <a
                                                         href={book.infoLink}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="flex-1 flex items-center justify-center px-3 py-2 bg-primary text-white text-sm rounded-lg hover:bg-blue-700 transition"
+                                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition-all"
                                                     >
-                                                        <ExternalLink size={14} className="mr-1" />
+                                                        <ExternalLink size={16} />
                                                         Read
                                                     </a>
                                                     <button
                                                         onClick={() => handleSaveBook(book)}
                                                         disabled={savingBookId === book.id}
-                                                        className={`flex items-center justify-center px-3 py-2 text-sm rounded-lg transition ${savedBookIds.has(book.id)
-                                                            ? 'bg-green-600 text-white hover:bg-green-700'
-                                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                                        className={`flex items-center justify-center px-4 py-3 text-sm rounded-xl font-bold transition-all ${savedBookIds.has(book.id)
+                                                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
                                                             }`}
                                                     >
                                                         {savingBookId === book.id ? (
-                                                            <Loader className="animate-spin" size={14} />
+                                                            <Loader className="animate-spin" size={16} />
                                                         ) : savedBookIds.has(book.id) ? (
-                                                            <BookmarkCheck size={14} />
+                                                            <BookmarkCheck size={16} />
                                                         ) : (
-                                                            <BookmarkPlus size={14} />
+                                                            <BookmarkPlus size={16} />
                                                         )}
                                                     </button>
                                                 </div>
@@ -441,13 +515,16 @@ const Study: React.FC = () => {
                                 </div>
                             )}
 
+                            {/* Empty State */}
                             {!loading && !error && books.length === 0 && (
                                 <div className="text-center py-20">
-                                    <BookOpen className="w-24 h-24 text-gray-300 dark:text-gray-600 mx-auto mb-6" />
-                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                                    <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-purple-500 to-pink-600 rounded-3xl shadow-xl mb-6">
+                                        <BookOpen className="w-12 h-12 text-white" />
+                                    </div>
+                                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">
                                         No books found
                                     </h2>
-                                    <p className="text-gray-600 dark:text-gray-400">
+                                    <p className="text-gray-600 dark:text-gray-400 text-lg">
                                         Try selecting a different topic
                                     </p>
                                 </div>
