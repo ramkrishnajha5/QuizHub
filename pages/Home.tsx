@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Rocket, Zap, BookOpen, Target, Trophy, ArrowRight, Play, UserPlus } from 'lucide-react';
+import { Rocket, Zap, BookOpen, Target, Trophy, ArrowRight, Play, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -54,19 +54,6 @@ const Home: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="text-center max-w-5xl mx-auto"
           >
-            {/* Floating Badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 mb-8"
-            >
-              <Sparkles className="w-5 h-5 text-yellow-500" />
-              <span className="text-sm font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
-                Your Ultimate Learning Platform
-              </span>
-            </motion.div>
-
             {/* Main Heading */}
             <h1 className="text-6xl md:text-8xl font-black mb-8 leading-tight">
               <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
@@ -79,7 +66,7 @@ const Home: React.FC = () => {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Challenge yourself with interactive quizzes, explore millions of study resources, and track your progress—all completely <span className="font-bold text-transparent bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">free</span>!
+              Challenge yourself with interactive quizzes, explore millions of study resources, and track your progress all completely <span className="font-bold text-transparent bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">free</span>!
             </p>
 
             {/* CTA Buttons */}

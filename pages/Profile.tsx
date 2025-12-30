@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../utils/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { User, Edit2, Save, Calendar, Phone, Mail, Loader, ArrowRight, Sparkles, Shield, CheckCircle2 } from 'lucide-react';
+import { User, Edit2, Save, Calendar, Phone, Mail, Loader, ArrowRight, Shield, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Alert from '../components/Alert';
 import { Link } from 'react-router-dom';
@@ -96,10 +96,6 @@ const Profile: React.FC = () => {
 
                 {/* Header */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
-                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-full shadow-xl border border-white/20 mb-6">
-                        <Sparkles className="w-5 h-5 text-purple-500" />
-                        <span className="text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Profile Settings</span>
-                    </div>
                     <h1 className="text-5xl font-black text-gray-900 dark:text-white">My <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Profile</span></h1>
                 </motion.div>
 

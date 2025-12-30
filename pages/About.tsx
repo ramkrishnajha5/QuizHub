@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Shield, BookOpen, Users, Target, Heart, TrendingUp, Award, Sparkles } from 'lucide-react';
+import { Globe, Shield, BookOpen, Users, Target, Heart, TrendingUp, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const About: React.FC = () => {
@@ -44,13 +44,6 @@ const About: React.FC = () => {
       <section className="relative z-10 pt-24 pb-16 px-4">
         <div className="max-w-5xl mx-auto text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 mb-8">
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              <span className="text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                About QuizHub
-              </span>
-            </div>
-
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-8 px-2">
               <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent break-words">
                 Democratizing

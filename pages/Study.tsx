@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BookOpen, Loader, AlertCircle, ExternalLink, BookmarkPlus, BookmarkCheck, Sparkles, Library, ArrowRight } from 'lucide-react';
+import { ArrowLeft, BookOpen, Loader, AlertCircle, ExternalLink, BookmarkPlus, BookmarkCheck, Library, ArrowRight } from 'lucide-react';
 import { Book, searchBooksBySubject } from '../services/googleBooks';
 import { saveBookForUser, removeBookForUser, isBookSaved } from '../services/savedBooksService';
 import { useAuth } from '../contexts/AuthContext';
@@ -232,17 +232,6 @@ const Study: React.FC = () => {
                         >
                             {/* Hero Header */}
                             <div className="text-center mb-16">
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 mb-8"
-                                >
-                                    <Sparkles className="w-5 h-5 text-yellow-500" />
-                                    <span className="text-sm font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
-                                        Powered by Google Books
-                                    </span>
-                                </motion.div>
-
                                 <h1 className="text-5xl md:text-7xl font-black mb-6">
                                     <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
                                         Study

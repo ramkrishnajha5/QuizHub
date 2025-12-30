@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookMarked, ExternalLink, Trash2, Loader, BookOpen, Sparkles, Library } from 'lucide-react';
+import { BookMarked, ExternalLink, Trash2, Loader, BookOpen, Library } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSavedBooksForUser, removeBookForUser, SavedBook } from '../services/savedBooksService';
 
@@ -59,10 +59,6 @@ const SavedBooks: React.FC = () => {
             <div className="relative z-10 max-w-7xl mx-auto px-4 py-12">
                 {/* Header */}
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
-                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-full shadow-xl border border-white/20 mb-6">
-                        <Sparkles className="w-5 h-5 text-purple-500" />
-                        <span className="text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">My Library</span>
-                    </div>
                     <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-3 flex items-center gap-4">
                         <BookMarked className="w-12 h-12 text-purple-600" />
                         Saved Books

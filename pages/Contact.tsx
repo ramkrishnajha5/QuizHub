@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { WEB3FORMS_ACCESS_KEY } from '../constants';
-import { Mail, Send, MapPin, Instagram, Clock, CheckCircle, Sparkles } from 'lucide-react';
+import { Mail, Send, MapPin, Instagram, Clock, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Contact: React.FC = () => {
@@ -52,11 +52,6 @@ const Contact: React.FC = () => {
       <section className="relative z-10 pt-24 pb-16 px-4">
         <div className="max-w-5xl mx-auto text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-full shadow-xl border border-white/20 mb-8">
-              <Sparkles className="w-5 h-5 text-pink-500" />
-              <span className="text-sm font-bold bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent">Contact Us</span>
-            </div>
-
             <h1 className="text-6xl md:text-7xl font-black mb-6">
               <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">Get in Touch</span>
             </h1>
