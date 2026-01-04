@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookMarked, ExternalLink, Trash2, Loader, BookOpen, Library } from 'lucide-react';
+import { BookMarked, ExternalLink, Trash2, Loader, BookOpen, Library, Download, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSavedBooksForUser, removeBookForUser, SavedBook } from '../services/savedBooksService';
 
@@ -63,7 +63,7 @@ const SavedBooks: React.FC = () => {
                         <BookMarked className="w-12 h-12 text-purple-600" />
                         Saved Books
                     </h1>
-                    <p className="text-xl text-gray-600 dark:text-gray-400">Your personal collection from Google Books</p>
+                    <p className="text-xl text-gray-600 dark:text-gray-400">Your personal collection of <span className="font-bold text-transparent bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text">free books</span></p>
                 </motion.div>
 
                 {loading ? (
@@ -105,12 +105,38 @@ const SavedBooks: React.FC = () => {
                                         </p>
 
                                         <div className="flex flex-col gap-2">
-                                            <a href={book.infoLink || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition">
-                                                <ExternalLink size={14} className="mr-2" /> Read / Preview
+                                            {/* Read Button */}
+                                            <a
+                                                href={(book as any).readUrl || book.infoLink || '#'}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition"
+                                            >
+                                                <Eye size={14} className="mr-2" /> Read Free
                                             </a>
-                                            <button onClick={() => handleRemoveBook(book.id)} disabled={deleting === book.id} className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-red-600 to-pink-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition disabled:opacity-50">
-                                                {deleting === book.id ? <><Loader className="animate-spin mr-2" size={14} /> Removing...</> : <><Trash2 size={14} className="mr-2" /> Remove</>}
-                                            </button>
+
+                                            <div className="flex gap-2">
+                                                {/* Download PDF Button (if available) */}
+                                                {(book as any).downloadUrl && (
+                                                    <a
+                                                        href={(book as any).downloadUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex-1 flex items-center justify-center px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition"
+                                                    >
+                                                        <Download size={14} className="mr-2" /> PDF
+                                                    </a>
+                                                )}
+
+                                                {/* Remove Button */}
+                                                <button
+                                                    onClick={() => handleRemoveBook(book.id)}
+                                                    disabled={deleting === book.id}
+                                                    className="flex-1 flex items-center justify-center px-4 py-2 bg-gradient-to-r from-red-600 to-pink-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition disabled:opacity-50"
+                                                >
+                                                    {deleting === book.id ? <><Loader className="animate-spin mr-2" size={14} /> Removing...</> : <><Trash2 size={14} className="mr-2" /> Remove</>}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </motion.div>

@@ -5,7 +5,11 @@ export interface SavedBookPayload {
     title: string;
     authors: string[];
     thumbnail?: string;
+    // Legacy Google Books field (for backward compatibility)
     infoLink?: string;
+    // Open Library fields
+    readUrl?: string;
+    downloadUrl?: string;
     subjectKey: string;
 }
 
@@ -22,11 +26,12 @@ export async function saveBookForUser(
 ) {
     const docRef = doc(db, "users", uid, "savedBooks", bookId);
     await setDoc(docRef, {
-        source: "google_books",
+        source: "open_library",
         title: payload.title,
         authors: payload.authors,
         thumbnail: payload.thumbnail ?? null,
-        infoLink: payload.infoLink ?? null,
+        readUrl: payload.readUrl ?? payload.infoLink ?? null,
+        downloadUrl: payload.downloadUrl ?? null,
         subjectKey: payload.subjectKey,
         addedAt: serverTimestamp(),
     }, { merge: true });

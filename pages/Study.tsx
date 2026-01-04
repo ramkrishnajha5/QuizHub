@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BookOpen, Loader, AlertCircle, ExternalLink, BookmarkPlus, BookmarkCheck, Library, ArrowRight } from 'lucide-react';
-import { Book, searchBooksBySubject } from '../services/googleBooks';
+import { ArrowLeft, BookOpen, Loader, AlertCircle, BookmarkPlus, BookmarkCheck, Library, ArrowRight, Download, ExternalLink } from 'lucide-react';
+import { UnifiedBook, searchBooksFromAllSources } from '../services/combinedBookService';
 import { saveBookForUser, removeBookForUser, isBookSaved } from '../services/savedBooksService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -123,7 +123,7 @@ const Study: React.FC = () => {
     const { currentUser } = useAuth();
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [selectedSubtopic, setSelectedSubtopic] = useState<string | null>(null);
-    const [books, setBooks] = useState<Book[]>([]);
+    const [books, setBooks] = useState<UnifiedBook[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [savedBookIds, setSavedBookIds] = useState<Set<string>>(new Set());
@@ -142,7 +142,8 @@ const Study: React.FC = () => {
         setLoading(true);
 
         try {
-            const results = await searchBooksBySubject(subtopicKey, 20);
+            // Fetch from both Open Library and Google Books (20 each = 40 total)
+            const results = await searchBooksFromAllSources(subtopicKey, 20);
             setBooks(results);
 
             if (currentUser) {
@@ -161,7 +162,7 @@ const Study: React.FC = () => {
         }
     };
 
-    const handleSaveBook = async (book: Book) => {
+    const handleSaveBook = async (book: UnifiedBook) => {
         if (!currentUser) {
             alert('Please log in to save books to your library');
             return;
@@ -184,6 +185,8 @@ const Study: React.FC = () => {
                     title: book.title,
                     authors: book.authors,
                     thumbnail: book.thumbnail,
+                    readUrl: book.readUrl,
+                    downloadUrl: book.downloadUrl,
                     infoLink: book.infoLink,
                     subjectKey: selectedSubtopic,
                 });
@@ -211,6 +214,17 @@ const Study: React.FC = () => {
         if (!selectedCategory || !selectedSubtopic) return '';
         const subtopic = selectedCategory.subtopics.find(s => s.key === selectedSubtopic);
         return subtopic?.name || '';
+    };
+
+    // Handle PDF download
+    const handleDownload = (url: string, title: string) => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     return (
@@ -243,7 +257,7 @@ const Study: React.FC = () => {
                                 </h1>
 
                                 <p className="text-xl text-gray-700 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                                    Explore millions of books across <span className="font-bold text-transparent bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">60+ topics</span> from 6 major categories
+                                    Explore millions of books across <span className="font-bold text-transparent bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text">40+ topics</span> from Open Library & Google Books
                                 </p>
                             </div>
 
@@ -390,7 +404,7 @@ const Study: React.FC = () => {
                                 Back to Topics
                             </motion.button>
 
-                            {/* Header */}
+                            {/* Header - No Emoji */}
                             <div className="text-center mb-12">
                                 <div className={`inline-flex items-center justify-center w-20 h-20 ${selectedCategory.iconBg} rounded-2xl shadow-xl mb-6`}>
                                     <Library className="w-10 h-10 text-white" />
@@ -400,7 +414,7 @@ const Study: React.FC = () => {
                                     {getCurrentSubtopicName()}
                                 </h1>
                                 <p className="text-lg text-gray-600 dark:text-gray-400">
-                                    Discover books from <span className="font-bold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">Google Books</span>
+                                    <span className="font-bold text-transparent bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text">40 books</span> from Open Library & Google Books
                                 </p>
                             </div>
 
@@ -427,7 +441,7 @@ const Study: React.FC = () => {
                             {loading && (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
-                                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading books...</p>
+                                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading books from both sources...</p>
                                 </div>
                             )}
 
@@ -439,10 +453,20 @@ const Study: React.FC = () => {
                                             key={book.id}
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: index * 0.05 }}
+                                            transition={{ delay: index * 0.02 }}
                                             whileHover={{ y: -8 }}
                                             className="group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-white/20"
                                         >
+                                            {/* Source Badge - Top Right */}
+                                            <div className="absolute top-3 right-3 z-10">
+                                                <span className={`px-2 py-1 text-xs font-bold rounded-lg ${book.source === 'open_library'
+                                                        ? 'bg-orange-500 text-white'
+                                                        : 'bg-blue-500 text-white'
+                                                    }`}>
+                                                    {book.source === 'open_library' ? 'Open Library' : 'Google'}
+                                                </span>
+                                            </div>
+
                                             {/* Book Cover */}
                                             <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 overflow-hidden flex items-center justify-center">
                                                 {book.thumbnail ? (
@@ -464,39 +488,75 @@ const Study: React.FC = () => {
                                                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-1">
                                                     {book.authors.join(', ') || 'Unknown Author'}
                                                 </p>
-                                                {book.description && (
-                                                    <p className="text-xs text-gray-500 dark:text-gray-500 mb-4 line-clamp-2">
-                                                        {book.description}
-                                                    </p>
-                                                )}
+
+                                                {/* Year & Status Badges */}
+                                                <div className="flex items-center flex-wrap gap-2 mb-3">
+                                                    {book.publishYear && (
+                                                        <span className="text-xs text-gray-500 dark:text-gray-500">
+                                                            {book.publishYear}
+                                                        </span>
+                                                    )}
+                                                    {/* Free or Paid Badge */}
+                                                    {book.isFree ? (
+                                                        <span className="px-2 py-0.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold rounded-full">
+                                                            FREE
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full">
+                                                            PAID
+                                                        </span>
+                                                    )}
+                                                    {/* PDF Badge */}
+                                                    {book.downloadUrl && (
+                                                        <span className="px-2 py-0.5 bg-gradient-to-r from-blue-500 to-cyan-600 text-white text-xs font-bold rounded-full">
+                                                            PDF
+                                                        </span>
+                                                    )}
+                                                </div>
 
                                                 {/* Actions */}
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-col gap-2">
+                                                    {/* Read Button */}
                                                     <a
-                                                        href={book.infoLink}
+                                                        href={book.readUrl || book.infoLink}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition-all"
+                                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition-all"
                                                     >
                                                         <ExternalLink size={16} />
                                                         Read
                                                     </a>
-                                                    <button
-                                                        onClick={() => handleSaveBook(book)}
-                                                        disabled={savingBookId === book.id}
-                                                        className={`flex items-center justify-center px-4 py-3 text-sm rounded-xl font-bold transition-all ${savedBookIds.has(book.id)
-                                                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
-                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                                                            }`}
-                                                    >
-                                                        {savingBookId === book.id ? (
-                                                            <Loader className="animate-spin" size={16} />
-                                                        ) : savedBookIds.has(book.id) ? (
-                                                            <BookmarkCheck size={16} />
-                                                        ) : (
-                                                            <BookmarkPlus size={16} />
+
+                                                    <div className="flex gap-2">
+                                                        {/* Download PDF Button (if available) - Direct Download */}
+                                                        {book.downloadUrl && (
+                                                            <button
+                                                                onClick={() => handleDownload(book.downloadUrl!, book.title)}
+                                                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white text-xs font-bold rounded-xl hover:shadow-lg transition-all"
+                                                            >
+                                                                <Download size={14} />
+                                                                PDF
+                                                            </button>
                                                         )}
-                                                    </button>
+
+                                                        {/* Save Button */}
+                                                        <button
+                                                            onClick={() => handleSaveBook(book)}
+                                                            disabled={savingBookId === book.id}
+                                                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs rounded-xl font-bold transition-all ${savedBookIds.has(book.id)
+                                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
+                                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                                                }`}
+                                                        >
+                                                            {savingBookId === book.id ? (
+                                                                <Loader className="animate-spin" size={14} />
+                                                            ) : savedBookIds.has(book.id) ? (
+                                                                <><BookmarkCheck size={14} /> Saved</>
+                                                            ) : (
+                                                                <><BookmarkPlus size={14} /> Save</>
+                                                            )}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </motion.div>
