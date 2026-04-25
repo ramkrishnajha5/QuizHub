@@ -1,0 +1,89 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ══════════════════════════════════
+    // HELPER FUNCTIONS
+    // ══════════════════════════════════
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isSuperAdmin() {
+      return isAdmin() &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // ══════════════════════════════════
+    // EXISTING COLLECTIONS (unchanged)
+    // ══════════════════════════════════
+
+    // User profiles
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(uid) || isAdmin();
+
+      // User sub-collections (quiz attempts, summaries, saved books)
+      match /{subcollection}/{docId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid);
+      }
+    }
+
+    // ══════════════════════════════════
+    // NEW ADMIN COLLECTIONS
+    // ══════════════════════════════════
+
+    // Admin accounts — only admins can read/write
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // Admin-uploaded quizzes
+    // Read: any authenticated user (for main app quiz setup)
+    // Write: admins only
+    match /adminQuizzes/{quizId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // User bans
+    // Read: the banned user themselves (to check status) + admins
+    // Write: admins only
+    match /userBans/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Admin activity logs — write by admins only, no user reads
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /adminNotifications/{notifId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // App configuration
+    // Read: all authenticated users
+    // Write: superadmin only
+    match /appConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+  }
+}

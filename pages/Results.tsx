@@ -104,6 +104,34 @@ const Results: React.FC = () => {
                 <div className="text-sm font-bold text-gray-700 dark:text-gray-300">Minutes</div>
               </div>
             </div>
+
+            {/* Admin Score Breakdown */}
+            {result.negativeMarking && (
+              <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <Target className="w-5 h-5 text-purple-500" /> Score Breakdown
+                </h4>
+                <div className="space-y-3 text-sm font-medium bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                  <div className="flex justify-between items-center text-green-700 dark:text-green-400">
+                    <span className="flex items-center gap-2">✅ <span className="text-gray-700 dark:text-gray-300">Correct ({result.correct})</span></span>
+                    <span>+{result.correct} marks</span>
+                  </div>
+                  <div className="flex justify-between items-center text-red-700 dark:text-red-400">
+                    <span className="flex items-center gap-2">❌ <span className="text-gray-700 dark:text-gray-300">Wrong ({result.wrong})</span></span>
+                    <span>−{result.wrong * 0.25} marks</span>
+                  </div>
+                  <div className="flex justify-between items-center text-gray-500 dark:text-gray-400">
+                    <span className="flex items-center gap-2">⏭️ <span className="text-gray-600 dark:text-gray-400">Skipped ({result.unattempted})</span></span>
+                    <span>0 marks</span>
+                  </div>
+                  <div className="my-2 border-b border-gray-200 dark:border-gray-700"></div>
+                  <div className="flex justify-between items-center font-black text-gray-900 dark:text-white text-base">
+                    <span>📊 Final Score:</span>
+                    <span className="text-purple-600 dark:text-purple-400">{result.score} / {result.totalQuestions || result.questions.length}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         </div>
 

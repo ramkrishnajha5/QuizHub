@@ -1,7 +1,8 @@
 import React from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { QuizProvider } from './contexts/QuizContext';
+import { AdminAuthProvider } from './admin/contexts/AdminAuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LeaveQuizModal from './components/LeaveQuizModal';
@@ -18,35 +19,80 @@ import Dashboard from './pages/Dashboard';
 import Study from './pages/Study';
 import SavedBooks from './pages/SavedBooks';
 
+// Admin Pages
+import ProtectedAdminRoute from './admin/components/ProtectedAdminRoute';
+import AdminLogin from './admin/pages/AdminLogin';
+import AdminDashboard from './admin/pages/AdminDashboard';
+import AllUsers from './admin/pages/AllUsers';
+import QuizAttempts from './admin/pages/QuizAttempts';
+import UploadQuiz from './admin/pages/UploadQuiz';
+import ManageQuizzes from './admin/pages/ManageQuizzes';
+import BannedUsers from './admin/pages/BannedUsers';
+import ActivityLogs from './admin/pages/ActivityLogs';
+import AdminSettings from './admin/pages/AdminSettings';
+
+import { ThemeProvider } from './contexts/ThemeContext';
+
+const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  if (isAdminRoute) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-white font-sans transition-colors duration-200 overflow-x-hidden">
+      <Header />
+      <LeaveQuizModal />
+      <main className="pt-16 flex-1">
+        {children}
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <QuizProvider>
-        <HashRouter>
-          <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-white font-sans transition-colors duration-200 overflow-x-hidden">
-            <Header />
-            <LeaveQuizModal />
-            <main className="pt-16 flex-1">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/setup" element={<QuizSetup />} />
-                <Route path="/quiz" element={<QuizRunner />} />
-                <Route path="/results" element={<Results />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/study" element={<Study />} />
-                <Route path="/saved-books" element={<SavedBooks />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </HashRouter>
-      </QuizProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <QuizProvider>
+          <AdminAuthProvider>
+            <HashRouter>
+              <AppLayout>
+                <Routes>
+                  {/* ═══ Main App Routes ═══ */}
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/setup" element={<QuizSetup />} />
+                  <Route path="/quiz" element={<QuizRunner />} />
+                  <Route path="/results" element={<Results />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/study" element={<Study />} />
+                  <Route path="/saved-books" element={<SavedBooks />} />
+
+                  {/* ═══ Admin Routes ═══ */}
+                  <Route path="/admin/login" element={<AdminLogin />} />
+                  <Route path="/admin/dashboard" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+                  <Route path="/admin/users" element={<ProtectedAdminRoute><AllUsers /></ProtectedAdminRoute>} />
+                  <Route path="/admin/attempts" element={<ProtectedAdminRoute><QuizAttempts /></ProtectedAdminRoute>} />
+                  <Route path="/admin/upload-quiz" element={<ProtectedAdminRoute><UploadQuiz /></ProtectedAdminRoute>} />
+                  <Route path="/admin/manage-quizzes" element={<ProtectedAdminRoute><ManageQuizzes /></ProtectedAdminRoute>} />
+                  <Route path="/admin/banned" element={<ProtectedAdminRoute><BannedUsers /></ProtectedAdminRoute>} />
+                  <Route path="/admin/logs" element={<ProtectedAdminRoute><ActivityLogs /></ProtectedAdminRoute>} />
+                  <Route path="/admin/settings" element={<ProtectedAdminRoute><AdminSettings /></ProtectedAdminRoute>} />
+                </Routes>
+              </AppLayout>
+            </HashRouter>
+          </AdminAuthProvider>
+        </QuizProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

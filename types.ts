@@ -50,6 +50,7 @@ export interface QuizAttempt {
   wrong: number;
   unattempted: number;
   totalQuestions?: number;
+  negativeMarking?: boolean;
   questions: Question[] | QuizQuestion[];
   userAnswers: UserAnswer[];
 }

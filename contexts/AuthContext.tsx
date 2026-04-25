@@ -6,18 +6,23 @@ import {
     signInWithPopup,
     signOut,
     onAuthStateChanged,
-    updateProfile
+    updateProfile,
+    sendPasswordResetEmail
 } from 'firebase/auth';
-import { auth, googleProvider } from '../utils/firebase';
+import { auth, googleProvider, db } from '../utils/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthContextType {
     currentUser: User | null;
     loading: boolean;
+    bannedMessage: string | null;
+    clearBannedMessage: () => void;
     signup: (email: string, password: string, displayName: string) => Promise<User>;
     login: (email: string, password: string) => Promise<User>;
     loginWithGoogle: () => Promise<User>;
     logout: () => Promise<void>;
     updateUserProfile: (displayName: string) => Promise<void>;
+    resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,9 +38,31 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [bannedMessage, setBannedMessage] = useState<string | null>(null);
+
+    const clearBannedMessage = () => setBannedMessage(null);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Skip ban check for admin sessions
+                const isAdminSession = sessionStorage.getItem('adminSession') === 'true';
+                if (!isAdminSession) {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', user.uid));
+                        if (userDoc.exists() && userDoc.data().isBanned === true) {
+                            // User is banned — sign out immediately
+                            await signOut(auth);
+                            setBannedMessage('Your account has been suspended. Contact support for help.');
+                            setCurrentUser(null);
+                            setLoading(false);
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error checking ban status:', error);
+                    }
+                }
+            }
             setCurrentUser(user);
             setLoading(false);
         });
@@ -48,7 +75,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await updateProfile(userCredential.user, { displayName });
         // Refresh the user object to get the updated displayName
         await userCredential.user.reload();
-        setCurrentUser(auth.currentUser);
+        const user = auth.currentUser;
+        if (user) {
+            try {
+                await setDoc(doc(db, "users", user.uid), {
+                    uid: user.uid,
+                    name: displayName,
+                    email: user.email,
+                    photoURL: user.photoURL || "",
+                    createdAt: serverTimestamp(),
+                    isBanned: false,
+                    totalQuizzes: 0,
+                }, { merge: true });
+            } catch (err) {
+                console.error("Failed to create user doc:", err);
+            }
+        }
+        setCurrentUser(user);
         return userCredential.user;
     };
 
@@ -59,7 +102,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loginWithGoogle = async (): Promise<User> => {
         const userCredential = await signInWithPopup(auth, googleProvider);
-        return userCredential.user;
+        const user = userCredential.user;
+        try {
+            await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
+                name: user.displayName || "User",
+                email: user.email,
+                photoURL: user.photoURL || "",
+                createdAt: serverTimestamp(),
+                isBanned: false,
+            }, { merge: true });
+        } catch (err) {
+            console.error("Failed to create google user doc:", err);
+        }
+        return user;
     };
 
     const logout = async (): Promise<void> => {
@@ -74,14 +130,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const resetPassword = async (email: string): Promise<void> => {
+        await sendPasswordResetEmail(auth, email);
+    };
+
     const value: AuthContextType = {
         currentUser,
         loading,
+        bannedMessage,
+        clearBannedMessage,
         signup,
         login,
         loginWithGoogle,
         logout,
-        updateUserProfile
+        updateUserProfile,
+        resetPassword
     };
 
     return (

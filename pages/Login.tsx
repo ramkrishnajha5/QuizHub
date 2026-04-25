@@ -1,23 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '../utils/firebase';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Mail, Lock, Sparkles, LogIn, Chrome } from 'lucide-react';
+import { AlertTriangle, Mail, Lock, Sparkles, LogIn, Chrome, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import ForgotPasswordModal from '../components/ForgotPasswordModal';
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+    const navigate = useNavigate();
+  const { bannedMessage, clearBannedMessage, login, loginWithGoogle } = useAuth();
+
+  // Clear banned message when component unmounts
+  useEffect(() => {
+    return () => clearBannedMessage();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await login(email, password);
       navigate('/');
     } catch (err: any) {
       setError("Invalid credentials. Please check your email and password.");
@@ -30,7 +39,7 @@ const Login: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      await signInWithPopup(auth, googleProvider);
+      await loginWithGoogle();
       navigate('/');
     } catch (err) {
       setError("Google sign-in failed. Please try again.");
@@ -59,6 +68,20 @@ const Login: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400">Sign in to continue learning</p>
           </div>
 
+          {/* Banned User Warning */}
+          {bannedMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-xl"
+            >
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm font-bold text-red-700 dark:text-red-300">{bannedMessage}</p>
+              </div>
+            </motion.div>
+          )}
+
           {/* Firebase Warning */}
           {!isFirebaseConfigured() && (
             <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-xl">
@@ -80,7 +103,16 @@ const Login: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Password</label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Password</label>
+                <button
+                  type="button"
+                  onClick={() => setIsForgotModalOpen(true)}
+                  className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline"
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input type="password" required placeholder="••••••••" className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-2 border-purple-200 dark:border-purple-800 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 dark:text-white transition font-medium" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -105,14 +137,29 @@ const Login: React.FC = () => {
           </div>
 
           {/* Google */}
-          <button onClick={handleGoogle} disabled={loading} className="w-full flex items-center justify-center gap-3 py-3 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition shadow-sm disabled:opacity-50">
+          <button onClick={handleGoogle} disabled={loading} className="w-full flex items-center justify-center gap-3 py-3 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition shadow-sm disabled:opacity-50 mb-4">
             <Chrome className="w-5 h-5 text-blue-600" /> <span className="text-gray-700 dark:text-gray-200">Continue with Google</span>
           </button>
+
+          {/* Admin Login Button */}
+          <Link
+            to="/admin/login"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            Admin Login
+          </Link>
 
           {/* Sign Up Link */}
           <p className="text-center mt-6 text-gray-600 dark:text-gray-400">Don't have an account? <Link to="/signup" className="font-bold text-purple-600 dark:text-purple-400 hover:underline">Sign Up</Link></p>
         </div>
       </motion.div>
+
+      {/* Reset Password Modal */}
+      <ForgotPasswordModal
+        isOpen={isForgotModalOpen}
+        onClose={() => setIsForgotModalOpen(false)}
+      />
     </div>
   );
 };

@@ -75,7 +75,46 @@ const QuizRunner: React.FC = () => {
         }
 
         // New quiz - check if we have state
-        const state = location.state as QuizLocationState;
+        const state = location.state as any;
+
+        // ══ Admin Custom Quiz ══
+        if (state?.source === 'admin' && state.questions) {
+          console.log('Loading custom admin quiz:', state.title);
+
+          // Convert admin quiz format to Question format
+          const qs: Question[] = state.questions.map((q: any, i: number) => ({
+            question: q.questionText,
+            correct_answer: q.options[q.correctOption],
+            incorrect_answers: q.options.filter((_: string, idx: number) => idx !== q.correctOption),
+            all_answers: q.options, // Keep original order for admin quizzes
+            category: state.category,
+            difficulty: state.difficulty,
+            type: 'multiple',
+          }));
+
+          setCategoryId(0);
+          setQuestionCount(qs.length);
+          setQuestions(qs);
+
+          const initialAnswers: UserAnswer[] = qs.map((_, i) => ({
+            questionIndex: i,
+            selectedAnswer: null,
+            isMarkedForReview: false,
+            timeSpent: 0,
+          }));
+          setUserAnswers(initialAnswers);
+
+          // Timer: Use admin assigned time limit explicitly
+          setTimeLeft((state.timeLimitMinutes || qs.length) * 60);
+
+          console.log('✅ Custom quiz initialized with', qs.length, 'questions');
+          setLoading(false);
+          setIsInitialized(true);
+          setQuizInProgress(true);
+          return;
+        }
+
+        // ══ Regular OpenTDB Quiz ══
         if (!state || !state.categoryId) {
           console.log('No quiz configuration found, redirecting to setup...');
           navigate('/setup');
@@ -286,16 +325,29 @@ const QuizRunner: React.FC = () => {
     let correct = 0;
     let wrong = 0;
     let unattempted = 0;
+    let score = 0;
+
+    const statePayload = location.state as any;
+    const isAdminQuiz = statePayload?.source === 'admin';
+    const negativeMarking = isAdminQuiz ? (statePayload?.negativeMarking === true) : false;
 
     questions.forEach((q, i) => {
       const ans = userAnswers[i].selectedAnswer;
-      if (!ans) unattempted++;
-      else if (ans === q.correct_answer) correct++;
-      else wrong++;
+      if (!ans) {
+        unattempted++;
+      } else if (ans === q.correct_answer) {
+        correct++;
+        score += 1;
+      } else {
+        wrong++;
+        if (negativeMarking) {
+          score -= 0.25;
+        }
+      }
     });
 
-    const score = correct;
-    const percent = (correct / questions.length) * 100;
+    score = Math.max(0, score);
+    const percent = (score / questions.length) * 100;
     const endedAt = Date.now();
 
     // Prepare quiz data for saving
@@ -335,8 +387,14 @@ const QuizRunner: React.FC = () => {
       unattempted,
       totalQuestions: questions.length,
       questions: quizQuestions,
-      userAnswers: quizUserAnswers
-    };
+      userAnswers: quizUserAnswers,
+      // Admin quiz metadata
+      ...(isAdminQuiz ? {
+        source: 'admin',
+        quizId: statePayload?.quizId,
+        negativeMarking: negativeMarking,
+      } : {}),
+    } as unknown as QuizAttempt;
 
     // Save to Firestore if user is logged in
     if (currentUser) {

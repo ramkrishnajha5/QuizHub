@@ -5,14 +5,56 @@ import { Category } from '../types';
 import { motion } from 'framer-motion';
 import { TIMERS, QUESTION_COUNTS } from '../constants';
 import { clearQuizState } from '../utils/idb';
-import { Brain, Clock, ListChecks, Sparkles, Play } from 'lucide-react';
+import { Brain, Clock, ListChecks, Sparkles, Play, Star, ChevronRight, X, Lock, Unlock, CalendarDays } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { getPublishedAdminQuizzes, AdminQuiz } from '../admin/utils/adminFirestore';
 
 const QuizSetup: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [questionCount, setQuestionCount] = useState<number>(15); // Default to 15 questions
   const [loading, setLoading] = useState(true);
+  const [customQuizzes, setCustomQuizzes] = useState<AdminQuiz[]>([]);
+  const [infoModalQuiz, setInfoModalQuiz] = useState<AdminQuiz | null>(null);
   const navigate = useNavigate();
+
+  const getAvailabilityStatus = (quiz: AdminQuiz) => {
+    if (!quiz.hasTimeRestriction) {
+      return { status: 'available', text: 'Available Now', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', locked: false };
+    }
+    
+    const now = new Date();
+    // Support string dates or firestore Timestamps if they come as objects
+    const extractDate = (val: any) => {
+      if (!val) return null;
+      if (val.seconds) return new Date(val.seconds * 1000);
+      if (val.toDate) return val.toDate();
+      return new Date(val);
+    };
+
+    const startTime = extractDate(quiz.availableFrom);
+    const endTime = extractDate(quiz.availableUntil);
+    
+    if (startTime && now < startTime) {
+      return { 
+        status: 'upcoming', 
+        text: `Opens ${startTime.toLocaleDateString()} ${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`, 
+        color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+        locked: true
+      };
+    }
+    
+    if (endTime && now > endTime) {
+      return { 
+        status: 'ended', 
+        text: 'Quiz Ended', 
+        color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+        locked: true
+      };
+    }
+    
+    return { status: 'live', text: 'Live Now', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', locked: false };
+  };
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -26,6 +68,17 @@ const QuizSetup: React.FC = () => {
       }
     };
     loadCategories();
+
+    // Load custom admin quizzes
+    const loadCustomQuizzes = async () => {
+      try {
+        const quizzes = await getPublishedAdminQuizzes();
+        setCustomQuizzes(quizzes);
+      } catch (err) {
+        console.error('Could not load custom quizzes:', err);
+      }
+    };
+    loadCustomQuizzes();
   }, []);
 
   const handleStart = async () => {
@@ -41,6 +94,22 @@ const QuizSetup: React.FC = () => {
       state: {
         categoryId: selectedCategory,
         questionCount: questionCount
+      }
+    });
+  };
+
+  const handleStartCustomQuiz = async (quiz: AdminQuiz) => {
+    await clearQuizState();
+    navigate('/quiz', {
+      state: {
+        source: 'admin',
+        quizId: quiz.quizId,
+        title: quiz.title,
+        category: quiz.category,
+        difficulty: quiz.difficulty,
+        questions: quiz.questions,
+        timeLimitMinutes: quiz.timeLimitMinutes || 10,
+        negativeMarking: quiz.negativeMarking || false,
       }
     });
   };
@@ -79,6 +148,69 @@ const QuizSetup: React.FC = () => {
               <p className="text-blue-100 text-lg">Select your topic and number of questions to begin your learning journey</p>
             </div>
           </div>
+
+          {/* Custom Quizzes by QuizHub Team -> Moved ABOVE standard configurator */}
+          {customQuizzes.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="border-b-4 border-gray-100 dark:border-gray-800"
+            >
+              <div className="bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 px-8 py-5">
+                <div className="flex items-center gap-3">
+                  <Star className="w-8 h-8 text-white" />
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-white">Quizzes by QuizHub Team</h3>
+                  </div>
+                </div>
+              </div>
+              <div className="p-8 grid sm:grid-cols-2 gap-4 bg-gray-50/50 dark:bg-gray-800/30">
+                {customQuizzes.map((quiz) => {
+                  const status = getAvailabilityStatus(quiz);
+                  return (
+                    <motion.button
+                      key={quiz.quizId}
+                      onClick={() => setInfoModalQuiz(quiz)}
+                      whileHover={{ scale: 1.02, y: -4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="text-left p-5 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800/80 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 transition-all shadow-sm hover:shadow-md group relative overflow-hidden"
+                    >
+                      {status.locked && <div className="absolute inset-0 bg-gray-100/30 dark:bg-gray-900/30 backdrop-blur-[1px] z-10 pointers-events-none" />}
+                      <div className="relative z-20">
+                        <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
+                          <div className="flex gap-2.5">
+                            <span className={`px-2 py-1 text-xs font-bold rounded-md ${
+                              quiz.difficulty === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : quiz.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            } capitalize shadow-sm`}>
+                              {quiz.difficulty}
+                            </span>
+                            <span className={`px-2 py-1 text-xs font-bold rounded-md shadow-sm ${status.color}`}>
+                              {status.text}
+                            </span>
+                          </div>
+                          {!status.locked && (
+                            <ChevronRight size={18} className="text-gray-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+                          )}
+                          {status.locked && (
+                            <Lock size={16} className="text-gray-400" />
+                          )}
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">{quiz.title}</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{quiz.category}</p>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">📝 {quiz.totalQuestions} Questions</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">⏱️ {quiz.timeLimitMinutes || 10} Minutes</p>
+                        </div>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
           <div className="p-8 md:p-10 space-y-8">
             {/* Category Selection */}
@@ -202,6 +334,8 @@ const QuizSetup: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* Replaced Custom Quizzes Section with Quiz Info Modal */}
+
         {/* Info Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -230,6 +364,113 @@ const QuizSetup: React.FC = () => {
           </ul>
         </motion.div>
       </div>
+
+      {/* Quiz Info Modal */}
+      <AnimatePresence>
+        {infoModalQuiz && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setInfoModalQuiz(null)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-5 flex items-start justify-between text-white">
+                <div>
+                  <h3 className="text-2xl font-black mb-1 leading-tight">{infoModalQuiz.title}</h3>
+                  <p className="text-white/80 text-sm font-medium">{infoModalQuiz.category}</p>
+                </div>
+                <button
+                  onClick={() => setInfoModalQuiz(null)}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition flex-shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 md:p-8 space-y-6 flex-1 bg-gray-50 dark:bg-transparent">
+                {(() => {
+                  const status = getAvailabilityStatus(infoModalQuiz);
+                  return (
+                    <>
+                      {/* Detailed Stats */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white dark:bg-gray-700/50 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+                          <ListChecks className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+                          <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase mb-1">Questions</p>
+                          <p className="text-xl font-black text-gray-900 dark:text-white">{infoModalQuiz.totalQuestions}</p>
+                        </div>
+                        <div className="bg-white dark:bg-gray-700/50 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+                          <Clock className="w-6 h-6 text-purple-500 mx-auto mb-2" />
+                          <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase mb-1">Time Limit</p>
+                          <p className="text-xl font-black text-gray-900 dark:text-white">{infoModalQuiz.timeLimitMinutes || 10} <span className="text-sm">min</span></p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-700/50 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Difficulty</span>
+                          <span className={`px-3 py-1 text-xs font-black rounded-lg capitalize ${
+                            infoModalQuiz.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                            infoModalQuiz.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>{infoModalQuiz.difficulty}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-700/50 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Negative Marking</span>
+                          <span className={`px-3 py-1 text-xs font-black rounded-lg ${
+                            infoModalQuiz.negativeMarking ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                          }`}>{infoModalQuiz.negativeMarking ? 'Yes (-0.25)' : 'No'}</span>
+                        </div>
+                        
+                        {infoModalQuiz.hasTimeRestriction && (
+                          <div className={`p-4 rounded-2xl shadow-sm border flex items-start gap-3 ${status.locked ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'}`}>
+                            {status.locked ? <Lock className="w-5 h-5 text-red-500 mt-0.5" /> : <Unlock className="w-5 h-5 text-green-500 mt-0.5" />}
+                            <div>
+                              <p className={`text-sm font-bold ${status.locked ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-400'} mb-1`}>
+                                Window Restricted
+                              </p>
+                              <p className={`text-xs ${status.locked ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-500'}`}>
+                                {status.text}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          disabled={status.locked}
+                          onClick={() => handleStartCustomQuiz(infoModalQuiz)}
+                          className={`w-full py-5 rounded-2xl font-black text-lg transition-all transform flex items-center justify-center gap-3 ${
+                            status.locked 
+                              ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed shadow-none'
+                              : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-xl hover:shadow-2xl hover:-translate-y-1'
+                          }`}
+                        >
+                          {status.locked ? (
+                            <> <Lock className="w-5 h-5" /> Locked </>
+                          ) : (
+                            <> 🚀 Start Quiz </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

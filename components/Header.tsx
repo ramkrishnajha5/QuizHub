@@ -5,40 +5,15 @@ import { auth } from '../utils/firebase';
 import { Menu, X, User, LogOut, Zap, Sun, Moon, Smartphone, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuiz } from '../contexts/QuizContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Header: React.FC = () => {
   const [user] = useAuthState(auth);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { attemptNavigation } = useQuiz();
-
-  useEffect(() => {
-    // Check local storage or system preference
-    const savedTheme = localStorage.getItem('theme');
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDark(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDark(true);
-    }
-  };
 
   const handleLogout = () => {
     auth.signOut();
