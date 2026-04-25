@@ -4,6 +4,8 @@ import { ArrowLeft, BookOpen, Loader, AlertCircle, BookmarkPlus, BookmarkCheck, 
 import { UnifiedBook, searchBooksFromAllSources } from '../services/combinedBookService';
 import { saveBookForUser, removeBookForUser, isBookSaved } from '../services/savedBooksService';
 import { useAuth } from '../contexts/AuthContext';
+import CustomModal from '../components/CustomModal';
+import { useCustomModal } from '../hooks/useCustomModal';
 
 interface Category {
     key: string;
@@ -128,6 +130,7 @@ const Study: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [savedBookIds, setSavedBookIds] = useState<Set<string>>(new Set());
     const [savingBookId, setSavingBookId] = useState<string | null>(null);
+    const { modalState, showAlert, closeModal } = useCustomModal();
 
     const handleCategoryClick = (category: Category) => {
         setSelectedCategory(category);
@@ -164,7 +167,7 @@ const Study: React.FC = () => {
 
     const handleSaveBook = async (book: UnifiedBook) => {
         if (!currentUser) {
-            alert('Please log in to save books to your library');
+            showAlert({ title: 'Login Required', message: 'Please log in to save books to your library', confirmStyle: 'primary' });
             return;
         }
 
@@ -194,7 +197,7 @@ const Study: React.FC = () => {
             }
         } catch (error) {
             console.error('Error saving book:', error);
-            alert('Failed to save book. Please try again.');
+            showAlert({ title: 'Error', message: 'Failed to save book. Please try again.', confirmStyle: 'danger' });
         } finally {
             setSavingBookId(null);
         }
@@ -582,6 +585,7 @@ const Study: React.FC = () => {
                     )}
                 </AnimatePresence>
             </div>
+            <CustomModal {...modalState} onClose={closeModal} />
         </div>
     );
 };

@@ -21,6 +21,14 @@ const Login: React.FC = () => {
     return () => clearBannedMessage();
   }, []);
 
+  // Detect ?banned=true redirect and show suspension message
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('banned') === 'true') {
+      setError('⛔ Your account has been suspended by an administrator. Contact support if you believe this is a mistake.');
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

@@ -7,13 +7,15 @@ import { TIMERS } from '../constants';
 import { auth, db } from '../utils/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, ChevronRight, Flag, Clock, CheckCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Flag, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Alert from '../components/Alert';
 import { saveQuizResult } from '../utils/saveQuizResult';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuiz } from '../contexts/QuizContext';
 import { QuizQuestion, UserAnswer as QuizUserAnswer } from '../types';
+import CustomModal from '../components/CustomModal';
+import { useCustomModal } from '../hooks/useCustomModal';
 
 interface QuizLocationState {
   categoryId: number;
@@ -38,6 +40,11 @@ const QuizRunner: React.FC = () => {
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'warning' | 'info', message: string } | null>(null);
   const [categoryId, setCategoryId] = useState<number>(9);
   const [questionCount, setQuestionCount] = useState<number>(15);
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const [submitCooldown, setSubmitCooldown] = useState(0);
+  const [globalEndTime, setGlobalEndTime] = useState<number | null>(null);
+  const { modalState, showConfirm, closeModal } = useCustomModal();
+  const warningShownRef = useRef(false);
 
   // Refs for autosave logic
   const stateRef = useRef({ questions, currentQuestionIndex, userAnswers, timeLeft });
@@ -106,6 +113,18 @@ const QuizRunner: React.FC = () => {
 
           // Timer: Use admin assigned time limit explicitly
           setTimeLeft((state.timeLimitMinutes || qs.length) * 60);
+
+          // If admin quiz has an end time, store it for global enforcement
+          if (state.availableUntil) {
+            const extractDate = (val: any) => {
+              if (!val) return null;
+              if (val.seconds) return new Date(val.seconds * 1000);
+              if (val.toDate) return val.toDate();
+              return new Date(val);
+            };
+            const endDate = extractDate(state.availableUntil);
+            if (endDate) setGlobalEndTime(endDate.getTime());
+          }
 
           console.log('✅ Custom quiz initialized with', qs.length, 'questions');
           setLoading(false);
@@ -240,7 +259,7 @@ const QuizRunner: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [loading, isSubmitting, isInitialized]);
 
-  // Timer
+  // Timer with 30-second warning
   useEffect(() => {
     if (loading || timeLeft <= 0 || isSubmitting) return;
 
@@ -250,6 +269,12 @@ const QuizRunner: React.FC = () => {
           clearInterval(timer);
           finishQuiz();
           return 0;
+        }
+        // Show 30-second warning popup
+        if (prev === 31 && !warningShownRef.current) {
+          warningShownRef.current = true;
+          setShowTimeWarning(true);
+          setTimeout(() => setShowTimeWarning(false), 5000);
         }
         // Update current question time spent
         setUserAnswers(prevAnswers => {
@@ -263,6 +288,18 @@ const QuizRunner: React.FC = () => {
 
     return () => clearInterval(timer);
   }, [loading, currentQuestionIndex, isSubmitting]);
+
+  // Global end-time enforcement for admin quizzes
+  useEffect(() => {
+    if (!globalEndTime || isSubmitting) return;
+    const checker = setInterval(() => {
+      if (Date.now() >= globalEndTime) {
+        clearInterval(checker);
+        finishQuiz();
+      }
+    }, 1000);
+    return () => clearInterval(checker);
+  }, [globalEndTime, isSubmitting]);
 
   // Autosave - include category info for resume banner on Dashboard
   useEffect(() => {
@@ -298,7 +335,14 @@ const QuizRunner: React.FC = () => {
       } else if (e.key.toLowerCase() === 'm') {
         toggleMarkReview();
       } else if (e.key.toLowerCase() === 's') {
-        if (window.confirm("Submit quiz?")) finishQuiz();
+        showConfirm({
+          title: 'Submit Quiz?',
+          message: 'Are you sure you want to submit? You cannot change answers after submission.',
+          onConfirm: () => finishQuiz(),
+          confirmText: 'Submit',
+          cancelText: 'Cancel',
+          confirmStyle: 'primary',
+        });
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -456,10 +500,27 @@ const QuizRunner: React.FC = () => {
           {formatTime(timeLeft)}
         </div>
         <button
-          onClick={finishQuiz}
-          className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition shadow-sm"
+          onClick={() => {
+            if (submitCooldown > 0) return;
+            showConfirm({
+              title: 'Submit Quiz?',
+              message: 'Are you sure you want to submit? You cannot change answers after submission.',
+              onConfirm: () => {
+                setSubmitCooldown(6);
+                const cd = setInterval(() => {
+                  setSubmitCooldown(p => { if (p <= 1) { clearInterval(cd); return 0; } return p - 1; });
+                }, 1000);
+                finishQuiz();
+              },
+              confirmText: 'Submit',
+              cancelText: 'Cancel',
+              confirmStyle: 'primary',
+            });
+          }}
+          disabled={submitCooldown > 0}
+          className={`px-4 py-2 text-white text-sm rounded-lg transition shadow-sm ${submitCooldown > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
         >
-          Submit
+          {submitCooldown > 0 ? `Wait ${submitCooldown}s` : 'Submit'}
         </button>
       </div>
 
@@ -583,6 +644,28 @@ const QuizRunner: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* 30-Second Warning Popup */}
+      <AnimatePresence>
+        {showTimeWarning && (
+          <motion.div
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 max-w-md"
+          >
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 animate-pulse" />
+            <div>
+              <p className="font-bold text-sm">⏰ Only 30 seconds left!</p>
+              <p className="text-xs text-red-100">Your quiz will be auto-submitted when time runs out.</p>
+            </div>
+            <button onClick={() => setShowTimeWarning(false)} className="ml-2 text-white/70 hover:text-white">✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Confirm Modal */}
+      <CustomModal {...modalState} onClose={closeModal} />
     </div>
   );
 };

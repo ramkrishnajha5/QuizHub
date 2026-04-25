@@ -12,15 +12,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronLeft, ChevronRight, FileText, Loader, Eye, Edit as PencilIcon, Trash2 as TrashIcon, CheckCircle, Check as CheckIcon, Save as SaveIcon, Loader as SpinnerIcon, X } from 'lucide-react';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
+import CustomModal from '../../components/CustomModal';
+import { useCustomModal } from '../../hooks/useCustomModal';
 
 const ManageQuizzes: React.FC = () => {
   const { adminUser } = useAdminAuth();
+  const { modalState, showAlert, showConfirm, closeModal } = useCustomModal();
   const [quizzes, setQuizzes] = useState<AdminQuiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [page, setPage] = useState(1);
   const [previewQuiz, setPreviewQuiz] = useState<AdminQuiz | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [editData, setEditData] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -66,24 +71,32 @@ const ManageQuizzes: React.FC = () => {
       });
       loadQuizzes();
     } catch (error) {
-      alert('Failed to update quiz');
+      showAlert({ title: 'Error', message: 'Failed to update quiz', confirmStyle: 'danger' });
     }
   };
 
   const handleDelete = async (quiz: AdminQuiz) => {
-    if (!window.confirm(`Delete quiz "${quiz.title}"? This cannot be undone.`)) return;
-    try {
-      await deleteAdminQuiz(quiz.quizId);
-      await logAdminAction({
-        action: 'QUIZ_DELETED',
-        performedBy: adminUser?.uid || '',
-        performedByEmail: adminUser?.email || '',
-        details: `Quiz "${quiz.title}" deleted`,
-      });
-      loadQuizzes();
-    } catch (error) {
-      alert('Failed to delete quiz');
-    }
+    showConfirm({
+      title: 'Delete Quiz',
+      message: `Delete quiz "${quiz.title}"? This cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmStyle: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteAdminQuiz(quiz.quizId);
+          await logAdminAction({
+            action: 'QUIZ_DELETED',
+            performedBy: adminUser?.uid || '',
+            performedByEmail: adminUser?.email || '',
+            details: `Quiz "${quiz.title}" deleted`,
+          });
+          loadQuizzes();
+        } catch (error) {
+          showAlert({ title: 'Error', message: 'Failed to delete quiz', confirmStyle: 'danger' });
+        }
+      },
+    });
   };
 
   const openEditModal = async (quiz: AdminQuiz) => {
@@ -95,7 +108,24 @@ const ManageQuizzes: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching quiz to edit:', error);
-      alert('Failed to load quiz details');
+      showAlert({ title: 'Error', message: 'Failed to load quiz details', confirmStyle: 'danger' });
+    }
+  };
+
+  const openPreviewModal = async (quiz: AdminQuiz) => {
+    try {
+      setPreviewLoading(true);
+      const snap = await getDoc(doc(db, "adminQuizzes", quiz.quizId));
+      if (!snap.exists()) {
+        showAlert({ title: 'Not Found', message: 'Quiz not found', confirmStyle: 'danger' });
+        return;
+      }
+      setPreviewQuiz({ quizId: snap.id, ...snap.data() } as AdminQuiz);
+      setShowPreviewModal(true);
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: 'Failed to load preview: ' + err.message, confirmStyle: 'danger' });
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -185,7 +215,7 @@ const ManageQuizzes: React.FC = () => {
       setShowEditModal(false);
       setEditData(null);
       setEditError("");
-      alert("Quiz updated successfully!");
+      showAlert({ title: 'Success', message: 'Quiz updated successfully!', confirmStyle: 'success' });
     } catch (err: any) {
       console.error("Save error:", err);
       setEditError("Failed to save: " + err.message);
@@ -195,6 +225,7 @@ const ManageQuizzes: React.FC = () => {
   };
 
   return (
+    <>
     <AdminLayout title="Manage Quizzes">
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -292,8 +323,8 @@ const ManageQuizzes: React.FC = () => {
                           >
                             <PencilIcon className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setPreviewQuiz(quiz)} className="p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition" title="Preview">
-                            <Eye size={18} />
+                          <button onClick={() => openPreviewModal(quiz)} className="p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition" title="Preview">
+                            {previewLoading && previewQuiz?.quizId === quiz.quizId ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <Eye size={18} />}
                           </button>
                           <button onClick={() => handleDelete(quiz)} className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition" title="Delete">
                             <TrashIcon size={18} />
@@ -321,6 +352,83 @@ const ManageQuizzes: React.FC = () => {
       )}
 
       {/* Preview Modal */}
+      {showPreviewModal && previewQuiz && (
+        <div className="admin-modal-overlay" onClick={() => setShowPreviewModal(false)}>
+          <div
+            className="admin-modal-box max-w-3xl w-full max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{previewQuiz.title}</h2>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  <span className="px-2 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{previewQuiz.category}</span>
+                  <span className="px-2 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 capitalize">{previewQuiz.difficulty}</span>
+                  <span className="px-2 py-1 text-xs font-bold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                    {previewQuiz.questions?.length || 0} Questions
+                  </span>
+                  <span className="px-2 py-1 text-xs font-bold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">⏱ {previewQuiz.timeLimitMinutes} min</span>
+                  <span className={`px-2 py-1 text-xs font-bold rounded-full ${previewQuiz.negativeMarking
+                    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                    : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"}`}>
+                    {previewQuiz.negativeMarking ? "⚠ Negative Marking" : "✅ No Negative Marking"}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setShowPreviewModal(false)} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {!previewQuiz.questions || previewQuiz.questions.length === 0 ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 py-10">
+                No questions found in this quiz.
+              </div>
+            ) : (
+              previewQuiz.questions.map((q: any, index: number) => (
+                <div key={index} className="mb-5 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                  <p className="font-medium mb-3 text-gray-900 dark:text-white">
+                    <span className="text-purple-600 dark:text-purple-400 mr-2 font-bold">Q{index + 1}.</span>
+                    {q.questionText}
+                  </p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {q.options.map((option: string, optIdx: number) => (
+                      <div key={optIdx} className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm border
+                          ${q.correctOption === optIdx
+                            ? "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-500/50 text-green-800 dark:text-green-300 font-medium"
+                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"}`}>
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0
+                          ${q.correctOption === optIdx
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"}`}>
+                          {["A","B","C","D"][optIdx]}
+                        </span>
+                        {option}
+                        {q.correctOption === optIdx && (
+                          <span className="ml-auto text-green-600 dark:text-green-400 text-xs font-semibold">
+                            ✓ Correct
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {q.explanation && (
+                    <p className="mt-3 text-xs text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 border border-blue-100 dark:border-blue-900/50">
+                      💡 <span className="font-semibold">Explanation:</span> {q.explanation}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
+
+            <div className="mt-6 text-center">
+              <button onClick={() => setShowPreviewModal(false)} className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-sm font-semibold transition-all">
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Edit Quiz Modal */}
       <AnimatePresence>
         {showEditModal && editData && (
@@ -411,6 +519,8 @@ const ManageQuizzes: React.FC = () => {
         )}
       </AnimatePresence>
     </AdminLayout>
+    <CustomModal {...modalState} onClose={closeModal} />
+    </>
   );
 };
 

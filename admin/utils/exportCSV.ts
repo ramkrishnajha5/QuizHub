@@ -5,7 +5,7 @@
 
 export function exportToCSV(data: Record<string, any>[], filename: string): void {
   if (!data || data.length === 0) {
-    alert('No data to export');
+    console.warn('No data to export');
     return;
   }
 

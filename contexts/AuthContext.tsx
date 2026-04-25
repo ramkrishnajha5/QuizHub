@@ -10,7 +10,7 @@ import {
     sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, googleProvider, db } from '../utils/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
 interface AuthContextType {
     currentUser: User | null;
@@ -42,6 +42,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const clearBannedMessage = () => setBannedMessage(null);
 
+    const handleBannedLogout = async () => {
+        try { await signOut(auth); } catch (err) { console.error(err); }
+        setBannedMessage('⛔ Your account has been suspended by an administrator. Contact support if you believe this is a mistake.');
+        setCurrentUser(null);
+    };
+
+    // Auth state listener with ban check on load
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -53,13 +60,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         if (userDoc.exists() && userDoc.data().isBanned === true) {
                             // User is banned — sign out immediately
                             await signOut(auth);
-                            setBannedMessage('Your account has been suspended. Contact support for help.');
+                            setBannedMessage('⛔ Your account has been suspended by an administrator. Contact support if you believe this is a mistake.');
                             setCurrentUser(null);
                             setLoading(false);
                             return;
                         }
                     } catch (error) {
                         console.error('Error checking ban status:', error);
+                        // fail open on network error
                     }
                 }
             }
@@ -69,6 +77,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         return unsubscribe;
     }, []);
+
+    // Real-time ban watcher using onSnapshot
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const isAdminSession = sessionStorage.getItem('adminSession') === 'true';
+        if (isAdminSession) return;
+
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const unsubscribeBanWatcher = onSnapshot(userDocRef, (snapshot) => {
+            if (!snapshot.exists()) return;
+            if (snapshot.data()?.isBanned === true) {
+                handleBannedLogout();
+            }
+        });
+
+        return () => unsubscribeBanWatcher();
+    }, [currentUser]);
 
     const signup = async (email: string, password: string, displayName: string): Promise<User> => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);

@@ -8,8 +8,16 @@ import { clearQuizState } from '../utils/idb';
 import { Brain, Clock, ListChecks, Sparkles, Play, Star, ChevronRight, X, Lock, Unlock, CalendarDays } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { getPublishedAdminQuizzes, AdminQuiz } from '../admin/utils/adminFirestore';
+import { useAuth } from '../contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { auth, db } from '../utils/firebase';
+import CustomModal from '../components/CustomModal';
+import { useCustomModal } from '../hooks/useCustomModal';
 
 const QuizSetup: React.FC = () => {
+  const { currentUser } = useAuth();
+  const { modalState, showAlert, closeModal } = useCustomModal();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [questionCount, setQuestionCount] = useState<number>(15); // Default to 15 questions
@@ -81,36 +89,49 @@ const QuizSetup: React.FC = () => {
     loadCustomQuizzes();
   }, []);
 
+  const checkBanAndStart = async (quizConfig: any) => {
+    try {
+      if (!currentUser) { navigate('/login'); return; }
+      const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+      if (!userSnap.exists() || userSnap.data()?.isBanned === true) {
+        await signOut(auth);
+        window.location.href = '/#/login?banned=true';
+        return;
+      }
+      navigate('/quiz', { state: quizConfig });
+    } catch {
+      navigate('/quiz', { state: quizConfig }); // fail open
+    }
+  };
+
   const handleStart = async () => {
     if (selectedCategory === null) {
-      alert("Please select a category");
+      showAlert({ title: 'No Category Selected', message: 'Please select a category before starting the quiz.', confirmStyle: 'primary' });
       return;
     }
     // Clear any previous saved state
     await clearQuizState();
 
-    // Navigate to runner with config
-    navigate('/quiz', {
-      state: {
-        categoryId: selectedCategory,
-        questionCount: questionCount
-      }
+    // Navigate to runner with config (with ban check)
+    checkBanAndStart({
+      categoryId: selectedCategory,
+      questionCount: questionCount,
     });
   };
 
   const handleStartCustomQuiz = async (quiz: AdminQuiz) => {
     await clearQuizState();
-    navigate('/quiz', {
-      state: {
-        source: 'admin',
-        quizId: quiz.quizId,
-        title: quiz.title,
-        category: quiz.category,
-        difficulty: quiz.difficulty,
-        questions: quiz.questions,
-        timeLimitMinutes: quiz.timeLimitMinutes || 10,
-        negativeMarking: quiz.negativeMarking || false,
-      }
+    checkBanAndStart({
+      source: 'admin',
+      quizId: quiz.quizId,
+      title: quiz.title,
+      category: quiz.category,
+      difficulty: quiz.difficulty,
+      questions: quiz.questions,
+      timeLimitMinutes: quiz.timeLimitMinutes || 10,
+      negativeMarking: quiz.negativeMarking || false,
+      hasTimeRestriction: quiz.hasTimeRestriction || false,
+      availableUntil: quiz.availableUntil || null,
     });
   };
 
@@ -471,6 +492,7 @@ const QuizSetup: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+      <CustomModal {...modalState} onClose={closeModal} />
     </div>
   );
 };

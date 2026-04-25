@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { BookMarked, ExternalLink, Trash2, Loader, BookOpen, Library, Download, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getSavedBooksForUser, removeBookForUser, SavedBook } from '../services/savedBooksService';
+import CustomModal from '../components/CustomModal';
+import { useCustomModal } from '../hooks/useCustomModal';
 
 const SavedBooks: React.FC = () => {
     const { currentUser } = useAuth();
@@ -11,6 +13,7 @@ const SavedBooks: React.FC = () => {
     const [books, setBooks] = useState<SavedBook[]>([]);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState<string | null>(null);
+    const { modalState, showAlert, showConfirm, closeModal } = useCustomModal();
 
     useEffect(() => {
         if (!currentUser) {
@@ -34,17 +37,26 @@ const SavedBooks: React.FC = () => {
     };
 
     const handleRemoveBook = async (bookId: string) => {
-        if (!currentUser || !window.confirm('Remove this book from your library?')) return;
-        setDeleting(bookId);
-        try {
-            await removeBookForUser(currentUser.uid, bookId);
-            setBooks(books.filter(b => b.id !== bookId));
-        } catch (error) {
-            console.error('Error removing book:', error);
-            alert('Failed to remove book.');
-        } finally {
-            setDeleting(null);
-        }
+        if (!currentUser) return;
+        showConfirm({
+            title: 'Remove Book',
+            message: 'Remove this book from your library?',
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            confirmStyle: 'danger',
+            onConfirm: async () => {
+                setDeleting(bookId);
+                try {
+                    await removeBookForUser(currentUser.uid, bookId);
+                    setBooks(books.filter(b => b.id !== bookId));
+                } catch (error) {
+                    console.error('Error removing book:', error);
+                    showAlert({ title: 'Error', message: 'Failed to remove book.', confirmStyle: 'danger' });
+                } finally {
+                    setDeleting(null);
+                }
+            },
+        });
     };
 
     if (!currentUser) return null;
@@ -159,6 +171,7 @@ const SavedBooks: React.FC = () => {
                     </>
                 )}
             </div>
+            <CustomModal {...modalState} onClose={closeModal} />
         </div>
     );
 };

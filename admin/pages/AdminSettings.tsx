@@ -13,9 +13,12 @@ import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { motion } from 'framer-motion';
 import { Settings, User, Shield, Globe, Save, Loader, Plus, CheckCircle, AlertTriangle, Lock, Key } from 'lucide-react';
+import CustomModal from '../../components/CustomModal';
+import { useCustomModal } from '../../hooks/useCustomModal';
 
 const AdminSettings: React.FC = () => {
   const { adminUser, adminRole, adminData } = useAdminAuth();
+  const { modalState, showAlert, closeModal } = useCustomModal();
   const [config, setConfig] = useState<AppConfig>({ maintenanceMode: false, maxQuizQuestions: 25, allowGoogleSignIn: true });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,7 +62,7 @@ const AdminSettings: React.FC = () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (error) {
-      alert('Failed to save settings');
+      showAlert({ title: 'Error', message: 'Failed to save settings', confirmStyle: 'danger' });
     } finally {
       setSaving(false);
     }
@@ -164,6 +167,7 @@ const AdminSettings: React.FC = () => {
   }
 
   return (
+    <>
     <AdminLayout title="Settings">
       <div className="max-w-3xl space-y-8">
         {/* Admin Profile */}
@@ -294,6 +298,8 @@ const AdminSettings: React.FC = () => {
         )}
       </div>
     </AdminLayout>
+    <CustomModal {...modalState} onClose={closeModal} />
+    </>
   );
 };
 

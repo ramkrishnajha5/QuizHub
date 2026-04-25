@@ -11,9 +11,12 @@ import { logAdminAction } from '../utils/adminLogger';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { Search, ChevronLeft, ChevronRight, Ban, Loader, Eye, Unlock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import CustomModal from '../../components/CustomModal';
+import { useCustomModal } from '../../hooks/useCustomModal';
 
 const BannedUsers: React.FC = () => {
   const { adminUser } = useAdminAuth();
+  const { modalState, showAlert, showConfirm, closeModal } = useCustomModal();
   const [bans, setBans] = useState<UserBan[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -51,24 +54,32 @@ const BannedUsers: React.FC = () => {
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
   const handleUnban = async (ban: UserBan) => {
-    if (!window.confirm(`Unban ${ban.email}?`)) return;
-    setUnbanning(ban.uid);
-    try {
-      await unbanUser(ban.uid);
-      await logAdminAction({
-        action: 'USER_UNBANNED',
-        performedBy: adminUser?.uid || '',
-        performedByEmail: adminUser?.email || '',
-        targetUid: ban.uid,
-        targetEmail: ban.email,
-        details: `User ${ban.email} unbanned`,
-      });
-      loadBans();
-    } catch (error) {
-      alert('Failed to unban user');
-    } finally {
-      setUnbanning(null);
-    }
+    showConfirm({
+      title: 'Unban User',
+      message: `Are you sure you want to unban ${ban.email}?`,
+      confirmText: 'Unban',
+      cancelText: 'Cancel',
+      confirmStyle: 'success',
+      onConfirm: async () => {
+        setUnbanning(ban.uid);
+        try {
+          await unbanUser(ban.uid);
+          await logAdminAction({
+            action: 'USER_UNBANNED',
+            performedBy: adminUser?.uid || '',
+            performedByEmail: adminUser?.email || '',
+            targetUid: ban.uid,
+            targetEmail: ban.email,
+            details: `User ${ban.email} unbanned`,
+          });
+          loadBans();
+        } catch (error) {
+          showAlert({ title: 'Error', message: 'Failed to unban user', confirmStyle: 'danger' });
+        } finally {
+          setUnbanning(null);
+        }
+      },
+    });
   };
 
   const handleViewProfile = async (uid: string) => {
@@ -80,6 +91,7 @@ const BannedUsers: React.FC = () => {
   };
 
   return (
+    <>
     <AdminLayout title="Banned Users">
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="relative flex-1">
@@ -158,6 +170,8 @@ const BannedUsers: React.FC = () => {
 
       <UserDetailDrawer user={selectedUser} isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} onUserUpdated={loadBans} />
     </AdminLayout>
+    <CustomModal {...modalState} onClose={closeModal} />
+    </>
   );
 };
 
