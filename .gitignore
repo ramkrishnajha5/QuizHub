@@ -29,3 +29,8 @@ dist-ssr
 
 # Temporary files & Admin imports
 software-engineering-questions.json
+rdbms-questions.json
+computer-networks-questions.json
+operating-system-questions.json
+data-structure-questions.json
+cloud-computing-questions.json
