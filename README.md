@@ -32,6 +32,7 @@
 
 ### 🧠 Interactive Quizzes
 - **24+ Categories** - Choose from a wide range of topics including Science, History, Geography, Entertainment, Sports, and more
+- **Admin Custom Quizzes** - Take quizzes created and uploaded by administrators with custom time limits and availability windows
 - **Customizable Quiz Length** - Select 10, 15, 20, or 25 questions per quiz
 - **Timed Quizzes** - Time limits based on question count (10-25 minutes)
 - **Random Question Shuffling** - Questions and answers are randomized for a unique experience every time
@@ -39,6 +40,8 @@
 - **Auto-Save Progress** - Quiz progress is saved every 5 seconds
 - **Resume Incomplete Quiz** - Continue from where you left off
 - **Keyboard Navigation** - Use keyboard shortcuts for faster navigation
+- **Time Warning** - Visual warning when quiz time is about to expire
+- **Submit Cooldown** - Prevents accidental double-submission
 
 ### 📚 Study Resources
 - **Google Books Integration** - Access millions of books across 60+ topics
@@ -55,10 +58,25 @@
 ### 👤 User Profile
 - **Profile Management** - Update your name, phone, and date of birth
 - **Firebase Authentication** - Secure login with Email/Password or Google
+- **Forgot Password** - Reset password via email link directly from the login page
 - **Persistent Sessions** - Stay logged in across browser sessions
+- **Real-time Ban Detection** - Banned accounts are signed out immediately via Firestore listeners
+
+### 🛡️ Admin Panel
+- **Admin Dashboard** - Overview stats for users, quizzes, and activity
+- **User Management** - View all users, detailed user drawers with quiz history, ban/unban users
+- **Quiz Upload** - Create custom quizzes with questions, options, time limits, and availability scheduling
+- **Manage Quizzes** - Edit, publish/unpublish, preview, and delete admin-uploaded quizzes
+- **Quiz Attempts** - View all user quiz attempts with detailed answer breakdowns
+- **Activity Logs** - Track admin actions (limited to last 50 entries for performance)
+- **Banned Users** - Dedicated page to manage suspended accounts
+- **Admin Settings** - Configure app-level settings, manage admin accounts (superadmin)
+- **CSV Export** - Export user and quiz data as CSV files
+- **Role-Based Access** - Superadmin and admin roles with Firestore security rules
 
 ### 🌓 Modern UI/UX
-- **Dark/Light Mode** - Toggle between themes with system preference detection
+- **Dark/Light Mode** - Toggle between themes with system preference detection and localStorage persistence
+- **Custom Modal System** - Beautiful animated modals replacing all native browser alerts and confirms
 - **Responsive Design** - Optimized for mobile, tablet, and desktop
 - **Smooth Animations** - Powered by Framer Motion
 - **Modern Glassmorphism** - Beautiful backdrop blur effects
@@ -79,7 +97,7 @@
 | **Local Storage** | IndexedDB (idb library) |
 | **Charts** | Recharts |
 | **Icons** | Lucide React |
-| **APIs** | Open Trivia DB, Google Books API |
+| **APIs** | Open Trivia DB, Google Books, Open Library, Web3Forms |
 | **Deployment** | Netlify |
 
 ---
@@ -88,40 +106,73 @@
 
 ```
 QuizHub/
-├── components/           # Reusable UI components
-│   ├── Header.tsx        # Navigation header with theme toggle
-│   ├── Footer.tsx        # Site footer
-│   ├── Alert.tsx         # Toast notifications
-│   ├── LeaveQuizModal.tsx # Confirmation modal for leaving quiz
-│   └── DashboardRecentQuizzes.tsx # Quiz history table
-├── contexts/             # React Context providers
-│   ├── AuthContext.tsx   # Authentication state
-│   └── QuizContext.tsx   # Quiz progress protection
-├── pages/                # Application pages
-│   ├── Home.tsx          # Landing page
-│   ├── Dashboard.tsx     # User dashboard with stats
-│   ├── QuizSetup.tsx     # Quiz configuration
-│   ├── QuizRunner.tsx    # Active quiz interface
-│   ├── Results.tsx       # Quiz results display
-│   ├── Study.tsx         # Study resources browser
-│   ├── SavedBooks.tsx    # User's saved books
-│   ├── Profile.tsx       # User profile management
-│   ├── Login.tsx         # Login page
-│   ├── Signup.tsx        # Registration page
-│   ├── About.tsx         # About us page
-│   └── Contact.tsx       # Contact form
-├── services/             # External API integrations
-│   ├── googleBooks.ts    # Google Books API
-│   └── savedBooksService.ts # Saved books Firestore service
-├── utils/                # Utility functions
-│   ├── api.ts            # Open Trivia DB API
-│   ├── firebase.ts       # Firebase configuration
-│   ├── idb.ts            # IndexedDB for quiz state
-│   └── saveQuizResult.ts # Quiz result Firestore service
-├── types.ts              # TypeScript interfaces
-├── constants.ts          # App configuration
-├── App.tsx               # Main application component
-└── index.tsx             # Entry point
+├── admin/                          # Admin Panel Module
+│   ├── components/                 # Admin UI components
+│   │   ├── AdminLayout.tsx         # Admin page layout wrapper
+│   │   ├── AdminSidebar.tsx        # Sidebar navigation
+│   │   ├── AdminTopBar.tsx         # Top bar with search & profile
+│   │   ├── AttemptDetailModal.tsx   # Quiz attempt detail viewer
+│   │   ├── ProtectedAdminRoute.tsx  # Route guard for admin pages
+│   │   ├── QuestionCard.tsx         # Question preview card
+│   │   └── UserDetailDrawer.tsx     # Slide-out user detail panel
+│   ├── contexts/
+│   │   └── AdminAuthContext.tsx     # Admin authentication state
+│   ├── pages/
+│   │   ├── ActivityLogs.tsx         # Admin activity log viewer
+│   │   ├── AdminDashboard.tsx       # Admin overview dashboard
+│   │   ├── AdminLogin.tsx           # Admin login page
+│   │   ├── AdminSettings.tsx        # App & admin configuration
+│   │   ├── AllUsers.tsx             # User management table
+│   │   ├── BannedUsers.tsx          # Banned user management
+│   │   ├── ManageQuizzes.tsx        # Quiz CRUD operations
+│   │   ├── QuizAttempts.tsx         # All quiz attempts viewer
+│   │   └── UploadQuiz.tsx           # Quiz creation form
+│   └── utils/
+│       ├── adminFirestore.ts        # Admin Firestore operations
+│       ├── adminLogger.ts           # Admin action logger
+│       └── exportCSV.ts             # CSV export utility
+├── components/                      # Reusable UI components
+│   ├── Header.tsx                   # Navigation header with theme toggle
+│   ├── Footer.tsx                   # Site footer
+│   ├── Alert.tsx                    # Toast notifications
+│   ├── CustomModal.tsx              # Animated modal (replaces alert/confirm)
+│   ├── ForgotPasswordModal.tsx      # Password reset modal
+│   ├── LeaveQuizModal.tsx           # Confirmation modal for leaving quiz
+│   └── DashboardRecentQuizzes.tsx   # Quiz history table
+├── contexts/                        # React Context providers
+│   ├── AuthContext.tsx              # Authentication state & ban detection
+│   ├── QuizContext.tsx              # Quiz progress protection
+│   └── ThemeContext.tsx             # Dark/Light theme management
+├── hooks/                           # Custom React hooks
+│   └── useCustomModal.ts            # Hook for CustomModal state management
+├── pages/                           # Application pages
+│   ├── Home.tsx                     # Landing page
+│   ├── Dashboard.tsx                # User dashboard with stats
+│   ├── QuizSetup.tsx                # Quiz configuration (API + admin quizzes)
+│   ├── QuizRunner.tsx               # Active quiz interface
+│   ├── Results.tsx                  # Quiz results display
+│   ├── Study.tsx                    # Study resources browser
+│   ├── SavedBooks.tsx               # User's saved books
+│   ├── Profile.tsx                  # User profile management
+│   ├── Login.tsx                    # Login page with forgot password
+│   ├── Signup.tsx                   # Registration page
+│   ├── About.tsx                    # About us page
+│   └── Contact.tsx                  # Contact form (Web3Forms)
+├── services/                        # External API integrations
+│   ├── combinedBookService.ts       # Combined book search aggregator
+│   ├── googleBooks.ts               # Google Books API
+│   ├── openLibrary.ts               # Open Library API
+│   └── savedBooksService.ts         # Saved books Firestore service
+├── utils/                           # Utility functions
+│   ├── api.ts                       # Open Trivia DB API with retry logic
+│   ├── firebase.ts                  # Firebase configuration & initialization
+│   ├── idb.ts                       # IndexedDB for quiz state persistence
+│   └── saveQuizResult.ts            # Quiz result Firestore service
+├── firestore.rules                  # Firestore security rules
+├── types.ts                         # TypeScript interfaces
+├── constants.ts                     # App configuration & API keys
+├── App.tsx                          # Main application with routing
+└── index.tsx                        # Entry point
 ```
 
 ---

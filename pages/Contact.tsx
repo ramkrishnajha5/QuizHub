@@ -12,14 +12,17 @@ const Contact: React.FC = () => {
     setStatus('submitting');
 
     try {
+      const formBody = new FormData();
+      formBody.append('access_key', WEB3FORMS_ACCESS_KEY);
+      formBody.append('name', formData.name);
+      formBody.append('email', formData.email);
+      formBody.append('message', formData.message);
+      formBody.append('subject', `QuizHub Contact from ${formData.name}`);
+      formBody.append('botcheck', '');
+
       const res = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          access_key: WEB3FORMS_ACCESS_KEY,
-          ...formData,
-          subject: `QuizHub Contact from ${formData.name}`
-        })
+        body: formBody
       });
       const result = await res.json();
       if (result.success) {
