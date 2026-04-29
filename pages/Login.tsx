@@ -49,8 +49,22 @@ const Login: React.FC = () => {
     try {
       await loginWithGoogle();
       navigate('/');
-    } catch (err) {
-      setError("Google sign-in failed. Please try again.");
+    } catch (err: any) {
+      const code = err?.code || '';
+      if (code === 'auth/operation-not-allowed') {
+        setError("Google sign-in is not enabled. Please contact the administrator to enable it in Firebase Console.");
+      } else if (code === 'auth/popup-closed-by-user') {
+        setError("Sign-in popup was closed. Please try again.");
+      } else if (code === 'auth/popup-blocked') {
+        setError("Sign-in popup was blocked by your browser. Please allow popups and try again.");
+      } else if (code === 'auth/cancelled-popup-request') {
+        setError("Another sign-in request is in progress. Please wait and try again.");
+      } else if (code === 'auth/unauthorized-domain') {
+        setError("This domain is not authorized for Google sign-in. Please contact the administrator.");
+      } else {
+        setError("Google sign-in failed. Please try again.");
+      }
+      console.error("Google sign-in error:", code, err);
     } finally {
       setLoading(false);
     }
