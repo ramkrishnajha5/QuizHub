@@ -1,6 +1,5 @@
-<p align="center">
-  <img src="https://play-lh.googleusercontent.com/PU-7DBlRewmHEit3ONwV1zSMAkbw26YAfnhJuw6TXlr5PP1ZIJugRm8InsSDjDqvQg" alt="QuizHub Logo" width="80"/>
-</p>
+<img width="1536" height="1024" alt="ChatGPT Image Apr 30, 2026, 07_07_22 AM" src="https://github.com/user-attachments/assets/5de5e91d-a006-438a-bc8d-5983ba06daa9" />
+
 
 <h1 align="center">🎯 QuizHub</h1>
 
