@@ -34,3 +34,8 @@ computer-networks-questions.json
 operating-system-questions.json
 data-structure-questions.json
 cloud-computing-questions.json
+
+# Custom ignored files
+diagrams/
+banking-*.json
+ssc-cgl-*.json
