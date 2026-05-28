@@ -29,15 +29,19 @@ export default function Header() {
     router.push(path);
   };
 
-
+  const openApkDownload = () => {
+    Linking.openURL('https://github.com/ramkrishnajha5/QuizHub/releases/download/v2.2.0/QuizHub.apk').catch(err =>
+      console.error("Couldn't load page", err)
+    );
+  };
 
   return (
     <View style={styles.zWrapper}>
       {/* Top Header Bar */}
       <View style={[styles.header, isDark ? styles.headerDark : styles.headerLight]}>
         {/* Logo */}
-        <TouchableOpacity 
-          style={styles.logoContainer} 
+        <TouchableOpacity
+          style={styles.logoContainer}
           onPress={() => handleNavigate('/')}
           activeOpacity={0.7}
         >
@@ -80,31 +84,31 @@ export default function Header() {
       {/* Slide-Down Navigation Menu */}
       {isMenuOpen && (
         <View style={[styles.menuDropdown, isDark ? styles.menuDark : styles.menuLight]}>
-          <ScrollView 
-            contentContainerStyle={styles.menuScroll} 
+          <ScrollView
+            contentContainerStyle={styles.menuScroll}
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}
           >
             <View style={styles.menuLinks}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.menuItem, isDark ? styles.menuItemDark : styles.menuItemLight]}
                 onPress={() => handleNavigate('/')}
               >
                 <Text style={[styles.menuItemText, isDark ? styles.textWhite : styles.textBlack]}>Home</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.menuItem, isDark ? styles.menuItemDark : styles.menuItemLight]}
                 onPress={() => handleNavigate('/study')}
               >
                 <Text style={[styles.menuItemText, isDark ? styles.textWhite : styles.textBlack]}>Study</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.menuItem, isDark ? styles.menuItemDark : styles.menuItemLight]}
                 onPress={() => handleNavigate('/about')}
               >
                 <Text style={[styles.menuItemText, isDark ? styles.textWhite : styles.textBlack]}>About Us</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.menuItem, isDark ? styles.menuItemDark : styles.menuItemLight]}
                 onPress={() => handleNavigate('/contact')}
               >
@@ -126,26 +130,26 @@ export default function Header() {
                     </Text>
                   </View>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.menuItem, isDark ? styles.menuItemDark : styles.menuItemLight]}
                     onPress={() => handleNavigate('/dashboard')}
                   >
                     <Text style={[styles.menuItemText, isDark ? styles.textWhite : styles.textBlack]}>Dashboard</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.menuItem, isDark ? styles.menuItemDark : styles.menuItemLight]}
                     onPress={() => handleNavigate('/saved-books')}
                   >
                     <Text style={[styles.menuItemText, isDark ? styles.textWhite : styles.textBlack]}>Saved Books</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.menuItem, isDark ? styles.menuItemDark : styles.menuItemLight]}
                     onPress={() => handleNavigate('/profile')}
                   >
                     <Text style={[styles.menuItemText, isDark ? styles.textWhite : styles.textBlack]}>Profile</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.logoutBtn}
                     onPress={handleLogout}
                   >
@@ -155,7 +159,7 @@ export default function Header() {
                 </View>
               ) : (
                 <View style={styles.loginContainer}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.loginBtn}
                     onPress={() => handleNavigate('/login')}
                   >
@@ -164,7 +168,17 @@ export default function Header() {
                 </View>
               )}
 
-
+              {/* Download Android App Button - Matching Web */}
+              <View style={[styles.downloadSection, isDark ? styles.borderDark : styles.borderLight]}>
+                <TouchableOpacity
+                  style={styles.downloadBtn}
+                  onPress={openApkDownload}
+                  activeOpacity={0.85}
+                >
+                  <Smartphone size={18} color="#fff" />
+                  <Text style={styles.downloadBtnText}>Download Android App</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </ScrollView>
         </View>

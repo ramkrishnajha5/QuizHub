@@ -133,7 +133,6 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-
         {/* Stats Grid */}
         <Text style={[styles.sectionTitle, isDark ? styles.textWhite : styles.textBlack]}>Your Performance</Text>
         <View style={styles.statsGrid}>
@@ -153,7 +152,7 @@ export default function DashboardScreen() {
             </LinearGradient>
             <Text style={[styles.premiumCardTitle, isDark ? styles.textWhite : styles.textBlack]}>Start Quiz</Text>
             <Text style={[styles.premiumCardDesc, isDark ? styles.textMuted : styles.textGray]}>Begin a new challenge</Text>
-             <Text style={[styles.premiumCardAction, { color: isDark ? '#60A5FA' : '#4F46E5' }]}>Get Started ➔</Text>
+            <Text style={[styles.premiumCardAction, { color: isDark ? '#60A5FA' : '#4F46E5' }]}>Get Started ➔</Text>
           </TouchableOpacity>
 
           {/* Best Score Card */}
@@ -249,7 +248,7 @@ export default function DashboardScreen() {
                     
                     <TouchableOpacity
                       onPress={() => handleViewDetails(quiz.attemptId)}
-                      style={[styles.viewSolutionBtn, isDark && { backgroundColor: 'rgba(96,165,250,0.08)' }]}
+                      style={[styles.viewSolutionBtn, { backgroundColor: isDark ? 'rgba(96,165,250,0.08)' : 'rgba(79,70,229,0.06)' }]}
                       activeOpacity={0.7}
                     >
                       <Eye size={16} color={isDark ? '#60A5FA' : '#4F46E5'} />
@@ -273,7 +272,7 @@ export default function DashboardScreen() {
             <View style={[styles.modalContent, isDark ? styles.modalContentDark : styles.modalContentLight]}>
               
               {/* Header */}
-              <View style={styles.modalHeader}>
+              <View style={[styles.modalHeader, { borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.modalTitle, isDark ? styles.textWhite : styles.textBlack]}>
                     Quiz Solutions
@@ -284,7 +283,7 @@ export default function DashboardScreen() {
                     </Text>
                   )}
                 </View>
-                <TouchableOpacity onPress={closeDetails} style={styles.closeBtn}>
+                <TouchableOpacity onPress={closeDetails} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)' }]}>
                   <X size={20} color={isDark ? '#9CA3AF' : '#4B5563'} />
                 </TouchableOpacity>
               </View>
@@ -297,7 +296,7 @@ export default function DashboardScreen() {
               ) : selectedAttempt ? (
                 <View style={{ flex: 1 }}>
                   {/* Score summary panel */}
-                  <View style={styles.scoreSummaryPanel}>
+                  <View style={[styles.scoreSummaryPanel, { backgroundColor: isDark ? 'rgba(96,165,250,0.08)' : 'rgba(79,70,229,0.05)' }]}>
                     <Text style={styles.summaryCorrect}>✓ {selectedAttempt.correct} Correct</Text>
                     <Text style={styles.summaryWrong}>✗ {selectedAttempt.wrong} Wrong</Text>
                     <Text style={styles.summaryUnattempted}>○ {selectedAttempt.unattempted} Unattempted</Text>
@@ -468,20 +467,20 @@ const styles = StyleSheet.create({
   activityCategory: { fontSize: 16, fontWeight: '800', marginBottom: 4 },
   activityDate: { fontSize: 13 },
   diffBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, fontSize: 9, fontWeight: '800' },
-  viewSolutionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: 'rgba(79,70,229,0.06)' },
-  viewSolutionBtnText: { fontSize: 13, fontWeight: '700', color: '#4F46E5' },
+  viewSolutionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
+  viewSolutionBtnText: { fontSize: 13, fontWeight: '700' },
 
   // Solution review modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '90%', paddingTop: 20, minHeight: '50%' },
   modalContentLight: { backgroundColor: '#F9FAFB' },
   modalContentDark: { backgroundColor: '#111827' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 24, paddingBottom: 16, borderBottomWidth: 1 },
   modalTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
   modalSubtitle: { fontSize: 13, fontWeight: '600', marginTop: 2 },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.03)', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   
-  scoreSummaryPanel: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: 'rgba(79,70,229,0.05)', margin: 20, padding: 16, borderRadius: 18 },
+  scoreSummaryPanel: { flexDirection: 'row', justifyContent: 'space-around', margin: 20, padding: 16, borderRadius: 18 },
   summaryCorrect: { fontSize: 12, fontWeight: '800', color: '#10B981' },
   summaryWrong: { fontSize: 12, fontWeight: '800', color: '#EF4444' },
   summaryUnattempted: { fontSize: 12, fontWeight: '800', color: '#6B7280' },

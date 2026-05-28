@@ -73,7 +73,7 @@ export default function HomeScreen() {
           </Text>
 
           <Text style={[styles.heroSubtitle, isDark ? styles.textMuted : styles.textGray]}>
-            Challenge yourself with interactive quizzes, explore millions of study resources, and track your progress, all completely{' '}
+            Challenge yourself with interactive quizzes, explore millions of study resources, and track your progress — all completely{' '}
             <Text style={{ fontWeight: '800', color: '#10B981' }}>free</Text>!
           </Text>
 

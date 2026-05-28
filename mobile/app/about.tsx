@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking, Dimensions } from 'react-native';
-import { 
+import {
   Globe, Shield, BookOpen, Users, Target, Heart, TrendingUp,
   Zap, Clock, Download, Smartphone,
   GraduationCap, Library, Brain, Quote, ChevronRight
@@ -107,24 +107,24 @@ export default function AboutScreen() {
   const quotes = [
     {
       text: "Practice makes a man perfect.",
-      author: "Ancient Proverb"
+      author: "— Ancient Proverb"
     },
     {
       text: "The more you read, the more things you will know. The more that you learn, the more places you'll go.",
-      author: "Dr. Seuss"
+      author: "— Dr. Seuss"
     },
     {
       text: "Education is the most powerful weapon which you can use to change the world.",
-      author: "Nelson Mandela"
+      author: "— Nelson Mandela"
     }
   ];
 
   return (
     <SafeAreaView style={[styles.safe, isDark ? styles.safeDark : styles.safeLight]}>
       <Header />
-      <ScrollView 
-        style={[styles.container, isDark ? styles.containerDark : styles.containerLight]} 
-        contentContainerStyle={styles.content} 
+      <ScrollView
+        style={[styles.container, isDark ? styles.containerDark : styles.containerLight]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
@@ -133,7 +133,7 @@ export default function AboutScreen() {
             <Text style={{ color: '#A855F7' }}>About</Text> QuizHub
           </Text>
           <Text style={[styles.heroSubtitle, isDark ? styles.textMuted : styles.textGray]}>
-            QuizHub is your free learning companion. Take quizzes to test your knowledge, read millions of books, and track your progress, all without spending a single penny.
+            QuizHub is your free learning companion. Take quizzes to test your knowledge, read millions of books, and track your progress — all without spending a single penny.
           </Text>
         </View>
 
@@ -165,7 +165,7 @@ export default function AboutScreen() {
             What Can You Do Here?
           </Text>
           <Text style={[styles.sectionSubtitle, isDark ? styles.textMuted : styles.textGray]}>
-            Everything you need to learn, test, and grow in one simple platform
+            Everything you need to learn, test, and grow — in one simple platform
           </Text>
         </View>
 
@@ -199,7 +199,7 @@ export default function AboutScreen() {
             How It Works
           </Text>
           <Text style={[styles.sectionSubtitle, isDark ? styles.textMuted : styles.textGray]}>
-            Getting started is super easy, just 3 simple steps
+            Getting started is super easy — just 3 simple steps
           </Text>
         </View>
 
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   containerLight: { backgroundColor: '#F9FAFB' },
   containerDark: { backgroundColor: '#111827' },
   content: { paddingBottom: 0 },
-  
+
   hero: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24 },
   badgeContainer: { marginBottom: 16 },
   badge: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 30 },
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   quoteCardBgIcon: { position: 'absolute', top: 12, right: 12 },
   quoteCardText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF', lineHeight: 22, fontStyle: 'italic', marginBottom: 8 },
   quoteCardAuthor: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
-  
+
 
 
   textWhite: { color: '#F9FAFB' },
