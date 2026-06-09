@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Animated, Dimensions, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Animated, Dimensions, Linking, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -168,17 +168,7 @@ export default function Header() {
                 </View>
               )}
 
-              {/* Download Android App Button - Matching Web */}
-              <View style={[styles.downloadSection, isDark ? styles.borderDark : styles.borderLight]}>
-                <TouchableOpacity
-                  style={styles.downloadBtn}
-                  onPress={openApkDownload}
-                  activeOpacity={0.85}
-                >
-                  <Smartphone size={18} color="#fff" />
-                  <Text style={styles.downloadBtnText}>Download Android App</Text>
-                </TouchableOpacity>
-              </View>
+
             </View>
           </ScrollView>
         </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { QuizAttempt } from '../shared/types';
@@ -8,14 +8,44 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { getItem, removeItem } from '../utils/storage';
 
 export default function ResultsScreen() {
-  const params = useLocalSearchParams<{ result: string }>();
+  const params = useLocalSearchParams<{ resultReady?: string }>();
   const router = useRouter();
   const { isDark } = useTheme();
   const [showSolutions, setShowSolutions] = useState(false);
+  const [result, setResult] = useState<QuizAttempt | null>(null);
+  const [loadingResult, setLoadingResult] = useState(true);
 
-  if (!params.result) {
+  useEffect(() => {
+    const loadResult = async () => {
+      try {
+        const stored = await getItem<QuizAttempt>('@quizhub_last_result');
+        if (stored) {
+          setResult(stored);
+        }
+      } catch (e) {
+        console.error('Failed to load result:', e);
+      } finally {
+        setLoadingResult(false);
+      }
+    };
+    loadResult();
+  }, []);
+
+  if (loadingResult) {
+    return (
+      <SafeAreaView style={[styles.safe, isDark ? styles.safeDark : styles.safeLight]}>
+        <Header />
+        <View style={styles.emptyContainer}>
+          <Text style={[styles.emptyTitle, isDark ? styles.textWhite : styles.textBlack]}>Loading Results...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!result) {
     return (
       <SafeAreaView style={[styles.safe, isDark ? styles.safeDark : styles.safeLight]}>
         <Header />
@@ -36,8 +66,6 @@ export default function ResultsScreen() {
       </SafeAreaView>
     );
   }
-
-  const result: QuizAttempt = JSON.parse(params.result);
 
   const getGrade = (p: number) => {
     if (p >= 90) return { text: 'Outstanding!', emoji: '🏆', gradient: ['#F59E0B', '#EF4444', '#DB2777'] };

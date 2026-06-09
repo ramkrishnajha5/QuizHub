@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import {
     User,
     createUserWithEmailAndPassword,
@@ -7,10 +8,15 @@ import {
     onAuthStateChanged,
     updateProfile,
     sendPasswordResetEmail,
+    signInWithRedirect,
+    getRedirectResult,
+    signInWithCredential,
+    GoogleAuthProvider,
 } from 'firebase/auth';
-import { auth, db } from '../utils/firebase';
+import { auth, db, googleProvider } from '../utils/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FIREBASE_CONFIG } from '../shared/constants';
 
 interface AuthContextType {
     currentUser: User | null;
@@ -50,6 +56,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Auth state listener with ban check on load
     useEffect(() => {
+        // Check for Google redirect result on web (after signInWithRedirect returns)
+        if (Platform.OS === 'web') {
+            getRedirectResult(auth).then(async (result) => {
+                if (result && result.user) {
+                    await ensureGoogleUserDoc(result.user);
+                    setCurrentUser(result.user);
+                }
+            }).catch((err) => {
+                console.error('Google redirect result error:', err);
+            });
+        }
+
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 // Skip ban check for admin sessions
@@ -151,38 +169,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const loginWithGoogle = async (): Promise<User> => {
-        const { signInWithPopup, signInWithRedirect } = await import('firebase/auth');
-        const { googleProvider } = await import('../utils/firebase');
-        const { Platform } = await import('react-native');
-        
-        let userCredential;
         if (Platform.OS === 'web') {
-            userCredential = await signInWithPopup(auth, googleProvider);
+            // Web: use signInWithRedirect (popups are blocked in Expo web context)
+            // After redirect, getRedirectResult in useEffect will capture the user
+            await signInWithRedirect(auth, googleProvider);
+            // This line won't be reached — page navigates away to Google
+            // When it returns, getRedirectResult + onAuthStateChanged handle the rest
+            return auth.currentUser!;
         } else {
-            userCredential = await signInWithRedirect(auth, googleProvider);
-        }
-        
-        const user = userCredential.user;
-        if (user) {
-            try {
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                if (!userDoc.exists()) {
-                    await setDoc(doc(db, "users", user.uid), {
-                        uid: user.uid,
-                        name: user.displayName || "Learner",
-                        email: user.email,
-                        photoURL: user.photoURL || "",
-                        createdAt: serverTimestamp(),
-                        isBanned: false,
-                        totalQuizzes: 0,
-                    }, { merge: true });
-                }
-            } catch (err) {
-                console.error("Failed to check/create Google user doc:", err);
+            // Native: use expo-auth-session + expo-web-browser
+            const { makeRedirectUri } = await import('expo-auth-session');
+            const WebBrowser = await import('expo-web-browser');
+
+            WebBrowser.maybeCompleteAuthSession();
+
+            const redirectUri = makeRedirectUri({ scheme: 'quizhub' });
+
+            const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
+                `client_id=${FIREBASE_CONFIG.messagingSenderId}.apps.googleusercontent.com` + 
+                `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                '&response_type=token' +
+                '&scope=openid%20email%20profile';
+
+            const result = await WebBrowser.openAuthSessionAsync(googleAuthUrl, redirectUri);
+
+            if (result.type !== 'success' || !result.url) {
+                throw new Error('Google sign-in was cancelled or failed');
             }
+
+            // Extract the access token from the redirect URL
+            const urlParams = result.url.includes('#') ? result.url.split('#')[1] : result.url.split('?')[1];
+            const params = new URLSearchParams(urlParams || '');
+            const accessToken = params.get('access_token');
+            const idToken = params.get('id_token');
+
+            if (!accessToken && !idToken) {
+                throw new Error('No authentication token received from Google');
+            }
+
+            const credential = GoogleAuthProvider.credential(idToken || null, accessToken || null);
+            const userCredential = await signInWithCredential(auth, credential);
+            const user = userCredential.user;
+            await ensureGoogleUserDoc(user);
+            setCurrentUser(user);
+            return user;
         }
-        setCurrentUser(user);
-        return user;
+    };
+
+    const ensureGoogleUserDoc = async (user: User) => {
+        try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (!userDoc.exists()) {
+                await setDoc(doc(db, "users", user.uid), {
+                    uid: user.uid,
+                    name: user.displayName || "Learner",
+                    email: user.email,
+                    photoURL: user.photoURL || "",
+                    createdAt: serverTimestamp(),
+                    isBanned: false,
+                    totalQuizzes: 0,
+                }, { merge: true });
+            }
+        } catch (err) {
+            console.error("Failed to check/create Google user doc:", err);
+        }
     };
 
     const value: AuthContextType = {

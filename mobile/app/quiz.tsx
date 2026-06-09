@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { fetchQuestions } from '../shared/api';
-import { saveQuizState, getQuizState, clearQuizState } from '../utils/storage';
+import { saveQuizState, getQuizState, clearQuizState, setItem } from '../utils/storage';
 import { Question, UserAnswer, QuizAttempt, QuizQuestion } from '../shared/types';
 import { TIMERS } from '../shared/constants';
 import { auth, db } from '../utils/firebase';
@@ -259,7 +259,9 @@ export default function QuizRunnerScreen() {
     }
 
     await clearQuizState();
-    router.replace({ pathname: '/results', params: { result: JSON.stringify(attemptData) } });
+    // Store result in AsyncStorage instead of URL params (avoids Android Intent size limits)
+    await setItem('@quizhub_last_result', attemptData);
+    router.replace({ pathname: '/results', params: { resultReady: '1' } });
   };
 
   const formatTime = (sec: number) => {
