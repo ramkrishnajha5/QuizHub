@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "QuizHub",
+    "slug": "quizhub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "quizhub",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#7C3AED"
+    },
+    "android": {
+      "package": "com.quizhub.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "backgroundColor": "#7C3AED"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "92b5f11a-6cd8-4955-bd19-ca1a48fff2c1"
+      }
+    },
+    "owner": "ram03krishna",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/92b5f11a-6cd8-4955-bd19-ca1a48fff2c1"
+    },
+    "ios": {}
+  }
+}
