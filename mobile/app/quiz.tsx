@@ -255,7 +255,12 @@ export default function QuizRunnerScreen() {
     };
 
     if (currentUser) {
-      try { await saveQuizResult(currentUser.uid, attemptData); } catch (e) { console.error("Failed to save:", e); }
+      try { 
+        // Do not await this so it doesn't block UI navigation if Firebase hangs
+        saveQuizResult(currentUser.uid, attemptData).catch(e => console.error("Failed to save background:", e)); 
+      } catch (e) { 
+        console.error("Failed to initiate save:", e); 
+      }
     }
 
     await clearQuizState();
