@@ -186,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const redirectUri = makeRedirectUri({ scheme: 'quizhub' });
 
             const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
-                `client_id=${FIREBASE_CONFIG.messagingSenderId}.apps.googleusercontent.com` + 
+                `client_id=1000298137844-3tb7n1dr5nlrnqnb8a8gbinkp2e9sp7g.apps.googleusercontent.com` + 
                 `&redirect_uri=${encodeURIComponent(redirectUri)}` +
                 '&response_type=token' +
                 '&scope=openid%20email%20profile';
