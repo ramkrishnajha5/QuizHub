@@ -183,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             WebBrowser.maybeCompleteAuthSession();
 
-            const redirectUri = makeRedirectUri({ scheme: 'quizhub' });
+            const redirectUri = makeRedirectUri({ useProxy: true, scheme: 'quizhub' });
 
             const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
                 `client_id=1000298137844-3tb7n1dr5nlrnqnb8a8gbinkp2e9sp7g.apps.googleusercontent.com` + 

@@ -6,7 +6,6 @@ import { saveQuizState, getQuizState, clearQuizState, setItem } from '../utils/s
 import { Question, UserAnswer, QuizAttempt, QuizQuestion } from '../shared/types';
 import { TIMERS } from '../shared/constants';
 import { auth, db } from '../utils/firebase';
-import { v4 as uuidv4 } from 'uuid';
 import { ChevronLeft, ChevronRight, Flag, Clock, CheckCircle, AlertTriangle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -242,7 +241,8 @@ export default function QuizRunnerScreen() {
     const quizDifficulty = difficulties.length === 1 ? String(difficulties[0]) : 'mixed';
 
     const attemptData: QuizAttempt = {
-      id: uuidv4(), userId: currentUser?.uid || 'guest', categoryId, category: questions[0]?.category || 'General',
+      id: `attempt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, 
+      userId: currentUser?.uid || 'guest', categoryId, category: questions[0]?.category || 'General',
       categoryName: questions[0]?.category || 'General', difficulty: quizDifficulty, questionCount,
       startedAt: quizStartedAt, finishedAt: endedAt, durationSeconds: (endedAt - quizStartedAt) / 1000,
       score, percent, correct, wrong, unattempted, totalQuestions: questions.length,
