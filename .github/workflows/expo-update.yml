@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./mobile
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Publish update
         working-directory: ./mobile
