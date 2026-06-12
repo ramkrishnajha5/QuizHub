@@ -183,7 +183,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             WebBrowser.maybeCompleteAuthSession();
 
-            const redirectUri = makeRedirectUri({ scheme: 'quizhub' });
+            // We use our deployed web app as a proxy because Google strictly requires an HTTPS redirect URI
+            // The mobile-auth.html file will instantly redirect the token back to our quizhub:// scheme!
+            const redirectUri = 'https://quizzzhubb.netlify.app/mobile-auth.html';
 
             const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
                 `client_id=1000298137844-3tb7n1dr5nlrnqnb8a8gbinkp2e9sp7g.apps.googleusercontent.com` + 
@@ -191,7 +193,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 '&response_type=token' +
                 '&scope=openid%20email%20profile';
 
-            const result = await WebBrowser.openAuthSessionAsync(googleAuthUrl, redirectUri);
+            // We must pass our deep link scheme to openAuthSessionAsync so it knows what to listen for!
+            const returnUrl = makeRedirectUri({ scheme: 'quizhub' });
+            const result = await WebBrowser.openAuthSessionAsync(googleAuthUrl, returnUrl);
 
             if (result.type !== 'success' || !result.url) {
                 throw new Error('Google sign-in was cancelled or failed');
