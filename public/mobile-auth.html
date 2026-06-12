@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authenticating...</title>
+</head>
+<body>
+    <p>Please wait, returning to the app...</p>
+    <script>
+        // Redirect the hash (which contains the access token) to the native app's custom scheme
+        window.location.href = "quizhub://login" + window.location.hash;
+    </script>
+</body>
+</html>
