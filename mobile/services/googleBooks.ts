@@ -25,7 +25,7 @@ function mapVolumeToBook(volume: any): Book {
 }
 
 export async function searchBooksByQuery(query: string, maxResults = 20): Promise<Book[]> {
-    const url = `${BASE_URL}?q=${encodeURIComponent(query)}&maxResults=${maxResults}&key=${API_KEY}`;
+    const url = `${BASE_URL}?q=${encodeURIComponent(query)}&maxResults=${maxResults}`;
 
     try {
         const res = await fetch(url);
