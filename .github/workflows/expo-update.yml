@@ -6,7 +6,6 @@ on:
       - feature/react-native-app
     paths:
       - 'mobile/**' # Only trigger when files in the mobile directory change
-      - '.github/workflows/expo-update.yml'
   workflow_dispatch: # Allows manual triggering from the Actions tab in GitHub
 
 
@@ -44,3 +43,5 @@ jobs:
           else
             eas update --branch preview --message "Auto-update from GitHub - $COMMIT_MESSAGE"
           fi
+
+          
