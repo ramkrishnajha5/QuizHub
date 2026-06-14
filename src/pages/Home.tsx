@@ -5,8 +5,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { Play, History, Zap, BarChart2, ArrowRight, Award, Layers, Smartphone, BookOpen, Brain, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getQuizState } from '../utils/idb';
-import { QuizAttempt } from '../types';
+import { getQuizState } from '../../utils/idb';
+import { QuizAttempt } from '../../types';
 
 const Home: React.FC = () => {
   const { currentUser: user, loading } = useAuth();
@@ -175,7 +175,7 @@ const Home: React.FC = () => {
                       {new Date(attempt.finishedAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {attempt.categoryName} <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1 border border-gray-200 dark:border-gray-600 px-1.5 py-0.5 rounded capitalize">{attempt.difficulty}</span>
+                      {attempt.categoryName} <span className="text-xs font-normal ml-1 border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 px-1.5 py-0.5 rounded">{attempt.quizTitle || 'Web Quiz'}</span> <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1 border border-gray-200 dark:border-gray-600 px-1.5 py-0.5 rounded capitalize">{attempt.difficulty}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-bold">
                       {attempt.percent.toFixed(0)}%

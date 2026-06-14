@@ -19,6 +19,7 @@ export type { QuizAttempt };
 
 export interface QuizSummary {
     categoryName: string;
+    quizTitle: string;
     difficulty: string;
     score: number;
     percent: number;
@@ -52,6 +53,7 @@ export const saveQuizResult = async (
         const summaryRef = doc(db, `users/${userId}/quizSummaries`, summaryId);
         const summary: QuizSummary = {
             categoryName: attempt.categoryName,
+            quizTitle: (attempt as any).quizTitle || 'Web Quiz',
             difficulty: attempt.difficulty,
             score: attempt.score,
             percent: (attempt.correct / attempt.totalQuestions) * 100,

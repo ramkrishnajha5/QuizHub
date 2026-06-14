@@ -39,6 +39,7 @@ export default function QuizRunnerScreen() {
   const [source, setSource] = useState<string>('api');
   const [negativeMarking, setNegativeMarking] = useState<boolean>(false);
   const [quizId, setQuizId] = useState<string>('');
+  const [quizTitle, setQuizTitle] = useState<string>('');
   const [submitCooldown, setSubmitCooldown] = useState<number>(0);
 
   const warningShownRef = useRef(false);
@@ -111,6 +112,7 @@ export default function QuizRunnerScreen() {
           setSource('admin');
           setNegativeMarking(state.negativeMarking || false);
           setQuizId(state.quizId || '');
+          setQuizTitle(state.quizTitle || state.title || '');
 
           const initialAnswers: UserAnswer[] = qs.map((_, i) => ({ questionIndex: i, selectedAnswer: null, isMarkedForReview: false, timeSpent: 0 }));
           setUserAnswers(initialAnswers);
@@ -250,6 +252,7 @@ export default function QuizRunnerScreen() {
       ...(source === 'admin' ? {
         source: 'admin',
         quizId,
+        quizTitle,
         negativeMarking
       } : {}),
     };

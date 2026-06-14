@@ -24,6 +24,7 @@ export const saveQuizResultToFirestore = async (userId: string, attempt: QuizAtt
   const detailedData = {
     categoryId: 0, 
     categoryName: attempt.category,
+    quizTitle: attempt.quizTitle || 'Web Quiz',
     difficulty: attempt.difficulty,
     score: attempt.score,
     totalQuestions: attempt.questions.length,
@@ -47,6 +48,7 @@ export const saveQuizResultToFirestore = async (userId: string, attempt: QuizAtt
 
   const summaryData = {
     categoryName: attempt.category,
+    quizTitle: attempt.quizTitle || 'Web Quiz',
     difficulty: attempt.difficulty,
     score: attempt.score,
     percent: attempt.percent,

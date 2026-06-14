@@ -231,8 +231,11 @@ export default function DashboardScreen() {
                         {quiz.categoryName}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                        <Text style={[styles.diffBadge, { backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(79,70,229,0.1)', color: isDark ? '#A5B4FC' : '#4F46E5' }]}>
+                          {quiz.quizTitle || 'Web Quiz'}
+                        </Text>
                         <Text style={[styles.diffBadge, { backgroundColor: quiz.difficulty === 'easy' ? 'rgba(16,185,129,0.1)' : quiz.difficulty === 'hard' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', color: quiz.difficulty === 'easy' ? '#10B981' : quiz.difficulty === 'hard' ? '#EF4444' : '#F59E0B' }]}>
-                          {quiz.difficulty.toUpperCase()}
+                          {quiz.difficulty ? quiz.difficulty.toUpperCase() : 'MIXED'}
                         </Text>
                         <Text style={[styles.diffBadge, { 
                           backgroundColor: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(79, 70, 229, 0.1)', 

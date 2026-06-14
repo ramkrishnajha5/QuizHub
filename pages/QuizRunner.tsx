@@ -432,10 +432,10 @@ const QuizRunner: React.FC = () => {
       totalQuestions: questions.length,
       questions: quizQuestions,
       userAnswers: quizUserAnswers,
-      // Admin quiz metadata
       ...(isAdminQuiz ? {
         source: 'admin',
         quizId: statePayload?.quizId,
+        quizTitle: statePayload?.title,
         negativeMarking: negativeMarking,
       } : {}),
     } as unknown as QuizAttempt;

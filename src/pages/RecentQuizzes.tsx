@@ -9,6 +9,7 @@ interface QuizSummary {
   id: string;
   categoryName: string;
   difficulty: string;
+  quizTitle?: string;
   score: number;
   percent: number;
   finishedAt: number;
@@ -62,6 +63,7 @@ const RecentQuizzes: React.FC = () => {
               <div className="flex-1 mb-4 md:mb-0">
                  <div className="flex items-center mb-1">
                    <span className="font-bold text-lg text-gray-900 dark:text-white mr-3">{summary.categoryName}</span>
+                   <span className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">{summary.quizTitle || 'Web Quiz'}</span>
                    <span className="px-2 py-0.5 rounded text-xs uppercase font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">{summary.difficulty}</span>
                  </div>
                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 space-x-4">
