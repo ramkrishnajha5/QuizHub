@@ -6,6 +6,8 @@ on:
       - feature/react-native-app
     paths:
       - 'mobile/**' # Only trigger when files in the mobile directory change
+  workflow_dispatch: # Allows manual triggering from the Actions tab in GitHub
+
 
 jobs:
   update:
