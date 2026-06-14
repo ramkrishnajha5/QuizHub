@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - feature/react-native-app
     paths:
       - 'mobile/**' # Only trigger when files in the mobile directory change
 

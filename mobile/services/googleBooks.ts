@@ -1,5 +1,5 @@
 const BASE_URL = "https://www.googleapis.com/books/v1/volumes";
-const API_KEY = "AIzaSyA4_L1MoM_aSqB4fZWLqDqtyb0H45X4zGo";
+const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY || "AIzaSyC36Mmjnk6_eaq8jYYzqZAX0QiwRt6dy7U";
 
 export interface Book {
     id: string;
@@ -25,7 +25,7 @@ function mapVolumeToBook(volume: any): Book {
 }
 
 export async function searchBooksByQuery(query: string, maxResults = 20): Promise<Book[]> {
-    const url = `${BASE_URL}?q=${encodeURIComponent(query)}&maxResults=${maxResults}`;
+    const url = `${BASE_URL}?q=${encodeURIComponent(query)}&maxResults=${maxResults}&key=${API_KEY}`;
 
     try {
         const res = await fetch(url);
