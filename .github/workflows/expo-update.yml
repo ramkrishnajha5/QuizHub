@@ -33,4 +33,6 @@ jobs:
 
       - name: Publish update
         working-directory: ./mobile
-        run: eas update --branch production --message "Auto-update from GitHub: ${{ github.event.head_commit.message }}"
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE"
