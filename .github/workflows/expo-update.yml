@@ -37,4 +37,9 @@ jobs:
         working-directory: ./mobile
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE"
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE"
+          else
+            eas update --branch preview --message "Auto-update from GitHub - $COMMIT_MESSAGE"
+          fi
