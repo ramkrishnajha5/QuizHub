@@ -142,6 +142,35 @@ export default function ResultsScreen() {
           </View>
         </View>
 
+        {/* Admin Score Breakdown */}
+        {result.negativeMarking && (
+          <View style={[styles.statsGrid, isDark ? styles.cardDark : styles.cardLight, { marginTop: 16 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+              <Target size={20} color="#8B5CF6" />
+              <Text style={[styles.statsTitle, isDark ? styles.textWhite : styles.textBlack, { marginBottom: 0 }]}>Score Breakdown</Text>
+            </View>
+            <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F9FAFB', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6', gap: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontSize: 14 }}>✅ Correct ({result.correct})</Text>
+                <Text style={{ color: isDark ? '#4ADE80' : '#15803D', fontWeight: 'bold' }}>+{result.correct} marks</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: isDark ? '#D1D5DB' : '#4B5563', fontSize: 14 }}>❌ Wrong ({result.wrong})</Text>
+                <Text style={{ color: isDark ? '#F87171' : '#B91C1C', fontWeight: 'bold' }}>−{result.wrong * 0.25} marks</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 14 }}>⏭️ Skipped ({result.unattempted})</Text>
+                <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontWeight: 'bold' }}>0 marks</Text>
+              </View>
+              <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB', marginVertical: 4 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: isDark ? '#F3F4F6' : '#111827', fontSize: 16, fontWeight: '900' }}>📊 Final Score:</Text>
+                <Text style={{ color: '#8B5CF6', fontSize: 16, fontWeight: '900' }}>{result.score} / {result.totalQuestions || result.questions.length}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Action Button Panel */}
         <View style={styles.actions}>
           <TouchableOpacity 

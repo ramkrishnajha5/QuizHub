@@ -56,7 +56,8 @@ const QuizAttemptsPage: React.FC = () => {
       result = result.filter(a =>
         (a.userName || '').toLowerCase().includes(q) ||
         (a.userEmail || '').toLowerCase().includes(q) ||
-        (a.categoryName || a.category || '').toLowerCase().includes(q)
+        (a.categoryName || a.category || '').toLowerCase().includes(q) ||
+        (a.quizTitle || '').toLowerCase().includes(q)
       );
     }
 
@@ -81,6 +82,7 @@ const QuizAttemptsPage: React.FC = () => {
       UserName: a.userName || '',
       UserEmail: a.userEmail || '',
       Category: a.categoryName || a.category || '',
+      QuizTitle: a.quizTitle || 'Web Quiz',
       Score: a.correct || 0,
       TotalQuestions: a.totalQuestions || a.questionCount || 0,
       Accuracy: (a.percent || 0).toFixed(1) + '%',
@@ -149,6 +151,7 @@ const QuizAttemptsPage: React.FC = () => {
                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                   <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">User</th>
                   <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase hidden lg:table-cell">Category</th>
+                  <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase hidden md:table-cell">Quiz Title</th>
                   <th className="px-4 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Score</th>
                   <th className="px-4 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Accuracy</th>
                   <th className="px-4 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase hidden sm:table-cell">Time</th>
@@ -165,6 +168,11 @@ const QuizAttemptsPage: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hidden lg:table-cell">
                       {a.categoryName || a.category || '—'}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                        {a.quizTitle || 'Web Quiz'}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-center text-sm font-bold text-gray-900 dark:text-white">
                       {a.correct || 0}/{a.totalQuestions || a.questionCount || 0}

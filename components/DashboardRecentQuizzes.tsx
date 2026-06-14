@@ -87,6 +87,9 @@ const DashboardRecentQuizzes: React.FC = () => {
                                     Category
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Quiz Title
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Difficulty
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -108,6 +111,11 @@ const DashboardRecentQuizzes: React.FC = () => {
                                 <tr key={summary.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                         {summary.categoryName}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                                            {summary.quizTitle || 'Web Quiz'}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${summary.difficulty === 'easy' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
