@@ -6,6 +6,8 @@ on:
       - feature/react-native-app
     paths:
       - 'mobile/**' # Only trigger when files in the mobile directory change
+  workflow_dispatch: # Allows manual triggering from the Actions tab in GitHub
+
 
 jobs:
   update:
@@ -33,4 +35,13 @@ jobs:
 
       - name: Publish update
         working-directory: ./mobile
-        run: eas update --branch production --message "Auto-update from GitHub: ${{ github.event.head_commit.message }}"
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE"
+          else
+            eas update --branch preview --message "Auto-update from GitHub - $COMMIT_MESSAGE"
+          fi
+
+          

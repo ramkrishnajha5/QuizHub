@@ -41,6 +41,8 @@ export default function QuizRunnerScreen() {
   const [quizId, setQuizId] = useState<string>('');
   const [quizTitle, setQuizTitle] = useState<string>('');
   const [submitCooldown, setSubmitCooldown] = useState<number>(0);
+  const [quizEndTime, setQuizEndTime] = useState<number | null>(null);
+  const [endTimeLeft, setEndTimeLeft] = useState<number | null>(null);
 
   const warningShownRef = useRef(false);
   const stateRef = useRef({ questions, currentQuestionIndex, userAnswers, timeLeft });
@@ -117,6 +119,20 @@ export default function QuizRunnerScreen() {
           const initialAnswers: UserAnswer[] = qs.map((_, i) => ({ questionIndex: i, selectedAnswer: null, isMarkedForReview: false, timeSpent: 0 }));
           setUserAnswers(initialAnswers);
           setTimeLeft((state.timeLimitMinutes || qs.length) * 60);
+
+          // Parse end time restriction
+          if (state.hasTimeRestriction && state.availableUntil) {
+            let endTs: number | null = null;
+            const au = state.availableUntil;
+            if (au.seconds) endTs = au.seconds * 1000;
+            else if (typeof au === 'string' || typeof au === 'number') endTs = new Date(au).getTime();
+            if (endTs && !isNaN(endTs)) {
+              const secsRemaining = Math.max(0, Math.floor((endTs - Date.now()) / 1000));
+              setQuizEndTime(endTs);
+              setEndTimeLeft(secsRemaining);
+            }
+          }
+
           setLoading(false);
           setIsInitialized(true);
           setQuizInProgress(true);
@@ -156,7 +172,7 @@ export default function QuizRunnerScreen() {
     init();
   }, []);
 
-  // Timer
+  // Timer (quiz total time)
   useEffect(() => {
     if (loading || timeLeft <= 0 || isSubmitting) return;
     const timer = setInterval(() => {
@@ -177,6 +193,28 @@ export default function QuizRunnerScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, [loading, currentQuestionIndex, isSubmitting]);
+
+  // End-time countdown (admin quiz deadline)
+  useEffect(() => {
+    if (loading || isSubmitting || endTimeLeft === null || endTimeLeft <= 0) return;
+    const endTimer = setInterval(() => {
+      setEndTimeLeft((prev) => {
+        if (prev === null) { clearInterval(endTimer); return null; }
+        if (prev <= 1) {
+          clearInterval(endTimer);
+          finishQuiz();
+          return 0;
+        }
+        if (prev === 31 && !warningShownRef.current) {
+          warningShownRef.current = true;
+          setShowTimeWarning(true);
+          setTimeout(() => setShowTimeWarning(false), 5000);
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(endTimer);
+  }, [loading, isSubmitting, endTimeLeft !== null]);
 
   // Autosave
   useEffect(() => {
@@ -199,7 +237,12 @@ export default function QuizRunnerScreen() {
 
   const handleAnswer = (answer: string) => {
     const updated = [...userAnswers];
-    updated[currentQuestionIndex].selectedAnswer = answer;
+    // Toggle: if same option clicked again, deselect it
+    if (updated[currentQuestionIndex].selectedAnswer === answer) {
+      updated[currentQuestionIndex].selectedAnswer = null;
+    } else {
+      updated[currentQuestionIndex].selectedAnswer = answer;
+    }
     setUserAnswers(updated);
   };
 
