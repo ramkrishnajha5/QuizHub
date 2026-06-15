@@ -8,7 +8,7 @@ import {
   deleteDoc, 
   doc
 } from 'firebase/firestore';
-import { QuizAttempt } from '../types';
+import { QuizAttempt } from '../../types';
 
 // Max limits
 const MAX_DETAILED_ATTEMPTS = 10;
@@ -34,16 +34,20 @@ export const saveQuizResultToFirestore = async (userId: string, attempt: QuizAtt
     durationSeconds: attempt.durationSeconds,
     startedAt: attempt.startedAt,
     finishedAt: attempt.endedAt,
-    questions: attempt.questions.map((q) => ({
+    questions: attempt.questions.map((q: any) => ({
       question: q.question,
-      options: q.all_answers,
-      correctAnswer: q.correct_answer
+      options: q.all_answers || q.options,
+      correctAnswer: q.correct_answer || q.correctAnswer
     })),
-    userAnswers: attempt.userAnswers.map((ua, i) => ({
-      selectedOption: ua.selectedAnswer,
-      isCorrect: ua.selectedAnswer === attempt.questions[i].correct_answer,
-      timeSpentSeconds: ua.timeSpent
-    }))
+    userAnswers: attempt.userAnswers.map((ua, i) => {
+      const q = attempt.questions[i] as any;
+      const correctAnswer = q.correct_answer || q.correctAnswer;
+      return {
+        selectedOption: ua.selectedAnswer,
+        isCorrect: ua.selectedAnswer === correctAnswer,
+        timeSpentSeconds: ua.timeSpent
+      };
+    })
   };
 
   const summaryData = {

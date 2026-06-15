@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchQuestions } from '../services/quizService';
-import { saveQuizState, getQuizState, clearQuizState } from '../utils/idb';
+import { saveQuizState, getQuizState, clearQuizState } from '../../utils/idb';
 import { saveQuizResultToFirestore } from '../utils/saveQuizResult';
-import { Question, UserAnswer, QuizAttempt } from '../types';
+import { Question, UserAnswer, QuizAttempt } from '../../types';
 import { TIMERS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,6 +27,9 @@ const QuizRunner: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [quizStartedAt] = useState(Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
+
+  const warningShownRef = useRef(false);
 
   // Refs for autosave logic
   const stateRef = useRef({ questions, currentQuestionIndex, userAnswers, timeLeft });
@@ -90,6 +93,11 @@ const QuizRunner: React.FC = () => {
           finishQuiz();
           return 0;
         }
+        if (prev === 31 && !warningShownRef.current) {
+          warningShownRef.current = true;
+          setShowTimeWarning(true);
+          setTimeout(() => setShowTimeWarning(false), 5000);
+        }
         // Update current question time spent
         setUserAnswers(prevAnswers => {
           const updated = [...prevAnswers];
@@ -143,7 +151,12 @@ const QuizRunner: React.FC = () => {
 
   const handleAnswer = (answer: string) => {
     const updated = [...userAnswers];
-    updated[currentQuestionIndex].selectedAnswer = answer;
+    // Toggle: if same option clicked again, deselect it
+    if (updated[currentQuestionIndex].selectedAnswer === answer) {
+      updated[currentQuestionIndex].selectedAnswer = null;
+    } else {
+      updated[currentQuestionIndex].selectedAnswer = answer;
+    }
     setUserAnswers(updated);
   };
 
@@ -176,6 +189,7 @@ const QuizRunner: React.FC = () => {
       userId: currentUser?.uid || 'guest',
       category: questions[0].category,
       difficulty: questions[0].difficulty,
+      questionCount: questions.length,
       startedAt: quizStartedAt,
       endedAt,
       durationSeconds: (endedAt - quizStartedAt) / 1000,
@@ -357,6 +371,17 @@ const QuizRunner: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* 30-Second Auto-Submit Warning Toast */}
+      {showTimeWarning && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce max-w-md">
+          <span className="text-2xl">⏰</span>
+          <div>
+            <p className="font-bold text-sm">Only 30 seconds left!</p>
+            <p className="text-xs opacity-90">Quiz will auto-submit when time runs out.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

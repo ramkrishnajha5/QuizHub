@@ -293,9 +293,16 @@ const QuizRunner: React.FC = () => {
   useEffect(() => {
     if (!globalEndTime || isSubmitting) return;
     const checker = setInterval(() => {
-      if (Date.now() >= globalEndTime) {
+      const msLeft = globalEndTime - Date.now();
+      const secLeft = Math.ceil(msLeft / 1000);
+
+      if (secLeft <= 0) {
         clearInterval(checker);
         finishQuiz();
+      } else if (secLeft <= 30 && !warningShownRef.current) {
+        warningShownRef.current = true;
+        setShowTimeWarning(true);
+        setTimeout(() => setShowTimeWarning(false), 5000);
       }
     }, 1000);
     return () => clearInterval(checker);
@@ -351,7 +358,11 @@ const QuizRunner: React.FC = () => {
 
   const handleAnswer = (answer: string) => {
     const updated = [...userAnswers];
-    updated[currentQuestionIndex].selectedAnswer = answer;
+    if (updated[currentQuestionIndex].selectedAnswer === answer) {
+      updated[currentQuestionIndex].selectedAnswer = null;
+    } else {
+      updated[currentQuestionIndex].selectedAnswer = answer;
+    }
     setUserAnswers(updated);
   };
 

@@ -15,15 +15,36 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const router = useRouter();
   const { isDark } = useTheme();
-  const { bannedMessage, clearBannedMessage, login, loginWithGoogle } = useAuth();
+  const { bannedMessage, clearBannedMessage, login, loginWithGoogle, resetPassword } = useAuth();
 
   useEffect(() => {
     return () => clearBannedMessage();
   }, []);
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email address to reset password.");
+      setInfo('');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setInfo('');
+    try {
+      await resetPassword(email.trim());
+      setInfo("Password reset email sent! Check your inbox.");
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to send reset email. Verify the address.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -123,7 +144,12 @@ export default function LoginScreen() {
 
             {/* Password Field */}
             <View style={styles.field}>
-              <Text style={[styles.label, isDark ? styles.textMuted : styles.textGray]}>Password</Text>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, isDark ? styles.textMuted : styles.textGray, { marginBottom: 0 }]}>Password</Text>
+                <TouchableOpacity onPress={handleResetPassword} disabled={loading}>
+                  <Text style={styles.forgotText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
               <View style={[styles.inputRow, isDark ? styles.inputRowDark : styles.inputRowLight, focusedField === 'password' && styles.inputRowActive]}>
                 <TextInput
                   style={[styles.input, isDark ? styles.textWhite : styles.textBlack]}
@@ -142,6 +168,13 @@ export default function LoginScreen() {
             {error ? (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Info */}
+            {info ? (
+              <View style={[styles.infoBox, isDark ? styles.infoBoxDark : styles.infoBoxLight]}>
+                <Text style={[styles.infoText, isDark ? styles.infoTextDark : styles.infoTextLight]}>{info}</Text>
               </View>
             ) : null}
 
@@ -244,6 +277,16 @@ const styles = StyleSheet.create({
 
   errorBox: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 16, padding: 12, marginBottom: 16 },
   errorText: { fontSize: 14, fontWeight: '500', color: '#991B1B' },
+
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  forgotText: { fontSize: 13, fontWeight: '700', color: '#4F46E5' },
+
+  infoBox: { borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 16, alignItems: 'center' },
+  infoBoxLight: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
+  infoBoxDark: { backgroundColor: 'rgba(30, 58, 138, 0.3)', borderColor: '#1E3A8A' },
+  infoText: { fontSize: 14, fontWeight: '600' },
+  infoTextLight: { color: '#1D4ED8' },
+  infoTextDark: { color: '#93C5FD' },
 
   loginButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 16, marginTop: 8, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
   loginButtonText: { color: '#fff', fontWeight: '800', fontSize: 17 },
