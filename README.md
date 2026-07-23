@@ -12,7 +12,7 @@
   <a href="https://quizzzhubb.netlify.app/#/">
     <img src="https://img.shields.io/badge/🌐_Live_Demo-QuizHub-blueviolet?style=for-the-badge" alt="Live Demo"/>
   </a>
-  <a href="https://github.com/ramkrishnajha5/QuizHub/releases/download/v2.2.0/QuizHub.apk">
+  <a href="https://github.com/ramkrishnajha5/QuizHub/releases/download/v1.0.0/QuizHub.Version1.0.0.apk">
     <img src="https://img.shields.io/badge/📱_Download-Android_App-success?style=for-the-badge" alt="Android App"/>
   </a>
 </p>
@@ -240,7 +240,7 @@ QuizHub/
 ## 📱 Android App
 
 Download the Android APK directly:
-- [QuizHub v2.2.0 APK](https://github.com/ramkrishnajha5/QuizHub/releases/download/v2.2.0/QuizHub.apk)
+- [QuizHub v1.0.0 APK](https://github.com/ramkrishnajha5/QuizHub/releases/download/v1.0.0/QuizHub.Version1.0.0.apk)
 
 ---
 

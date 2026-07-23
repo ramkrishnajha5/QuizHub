@@ -26,5 +26,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src", "types.ts", "utils", "services", "shared", "contexts", "admin"]
+  "include": ["src", "components", "pages", "types.ts", "utils", "services", "shared", "contexts", "admin"]
 }
