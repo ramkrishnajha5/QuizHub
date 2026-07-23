@@ -30,7 +30,7 @@ export default function Header() {
   };
 
   const openApkDownload = () => {
-    Linking.openURL('https://github.com/ramkrishnajha5/QuizHub/releases/download/v2.2.0/QuizHub.apk').catch(err =>
+    Linking.openURL('https://github.com/ramkrishnajha5/QuizHub/releases/download/v1.0.0/QuizHub.Version1.0.0.apk').catch(err =>
       console.error("Couldn't load page", err)
     );
   };
