@@ -139,6 +139,8 @@ export const SUBJECT_QUERY_MAP: Record<string, string> = {
     "cs-networking": "computer networks",
     "cs-os": "operating systems",
     "cs-web": "web development",
+    "cs-ai": "artificial intelligence",
+    "cs-ml": "machine learning",
 
     // Arts & Humanities
     "arts-history": "history",
