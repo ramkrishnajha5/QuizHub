@@ -49,6 +49,8 @@ const CATEGORIES: Category[] = [
       { key: 'cs-networking', name: 'Computer Networks' },
       { key: 'cs-os', name: 'Operating Systems' },
       { key: 'cs-web', name: 'Web Development' },
+      { key: 'cs-ai', name: 'Artificial Intelligence' },
+      { key: 'cs-ml', name: 'Machine Learning' },
     ]
   },
   {

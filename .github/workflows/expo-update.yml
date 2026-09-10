@@ -6,8 +6,11 @@ on:
       - feature/react-native-app
     paths:
       - 'mobile/**' # Only trigger when files in the mobile directory change
+      - '.github/workflows/expo-update.yml'
   workflow_dispatch: # Allows manual triggering from the Actions tab in GitHub
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
 
 jobs:
   update:
@@ -21,13 +24,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
 
-      - name: Setup Expo
+      - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
-          expo-version: latest
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
 
       - name: Install dependencies
         working-directory: ./mobile
@@ -36,12 +41,13 @@ jobs:
       - name: Publish update
         working-directory: ./mobile
         env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
-            eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE"
+            eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE" --non-interactive
           else
-            eas update --branch preview --message "Auto-update from GitHub - $COMMIT_MESSAGE"
+            eas update --branch preview --message "Auto-update from GitHub - $COMMIT_MESSAGE" --non-interactive
           fi
 
           
