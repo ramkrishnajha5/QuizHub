@@ -205,6 +205,8 @@ export interface AdminQuiz {
   availableFrom?: any;
   availableUntil?: any;
   questions: AdminQuizQuestion[];
+  folderId?: string | null;
+  folderPath?: string;
 }
 
 export async function createAdminQuiz(quiz: Omit<AdminQuiz, 'quizId' | 'createdAt' | 'updatedAt'>): Promise<string> {
@@ -212,6 +214,8 @@ export async function createAdminQuiz(quiz: Omit<AdminQuiz, 'quizId' | 'createdA
   const data = {
     ...quiz,
     quizId: quizRef.id,
+    folderId: quiz.folderId || null,
+    folderPath: quiz.folderPath || '',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -273,6 +277,198 @@ export async function getAdminQuizById(quizId: string): Promise<AdminQuiz | null
     console.error('Error fetching admin quiz:', error);
     return null;
   }
+}
+
+// ==================== QUIZ FOLDERS ====================
+
+export interface QuizFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  order: number;
+  createdAt: any;
+  createdBy: string;
+}
+
+export async function getAllQuizFolders(): Promise<QuizFolder[]> {
+  try {
+    const foldersRef = collection(db, 'quizFolders');
+    const q = query(foldersRef, orderBy('order', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as QuizFolder));
+  } catch (error) {
+    console.error('Error fetching quiz folders:', error);
+    return [];
+  }
+}
+
+export async function createQuizFolder(name: string, parentId: string | null, createdBy: string): Promise<string> {
+  const folderRef = doc(collection(db, 'quizFolders'));
+  // Determine order: put new folders at the end
+  const existingFolders = await getAllQuizFolders();
+  const siblings = existingFolders.filter(f => f.parentId === parentId);
+  const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(f => f.order || 0)) : 0;
+
+  await setDoc(folderRef, {
+    name,
+    parentId: parentId || null,
+    order: maxOrder + 1,
+    createdAt: serverTimestamp(),
+    createdBy,
+  });
+  return folderRef.id;
+}
+
+export async function renameQuizFolder(folderId: string, newName: string): Promise<void> {
+  const folderRef = doc(db, 'quizFolders', folderId);
+  await updateDoc(folderRef, { name: newName });
+
+  // Update folderPath on all quizzes that reference this folder or its children
+  await refreshFolderPaths();
+}
+
+export async function deleteQuizFolder(folderId: string): Promise<void> {
+  // Move all quizzes in this folder to "uncategorized" (null)
+  const quizzesRef = collection(db, 'adminQuizzes');
+  const q = query(quizzesRef, where('folderId', '==', folderId));
+  const snapshot = await getDocs(q);
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(d => {
+    batch.update(d.ref, { folderId: null, folderPath: 'Other Quizzes' });
+  });
+
+  // Delete child folders recursively
+  const allFolders = await getAllQuizFolders();
+  const childIds = getDescendantFolderIds(folderId, allFolders);
+  for (const childId of childIds) {
+    // Move quizzes in child folders to uncategorized
+    const childQ = query(quizzesRef, where('folderId', '==', childId));
+    const childSnap = await getDocs(childQ);
+    childSnap.docs.forEach(d => {
+      batch.update(d.ref, { folderId: null, folderPath: 'Other Quizzes' });
+    });
+    batch.delete(doc(db, 'quizFolders', childId));
+  }
+
+  // Delete the folder itself
+  batch.delete(doc(db, 'quizFolders', folderId));
+  await batch.commit();
+}
+
+function getDescendantFolderIds(parentId: string, allFolders: QuizFolder[]): string[] {
+  const children = allFolders.filter(f => f.parentId === parentId);
+  let result: string[] = [];
+  for (const child of children) {
+    result.push(child.id);
+    result = result.concat(getDescendantFolderIds(child.id, allFolders));
+  }
+  return result;
+}
+
+/**
+ * Build the full display path for a folder, e.g. "SSC / SSC CGL / Chapterwise"
+ */
+export function buildFolderPath(folderId: string, allFolders: QuizFolder[]): string {
+  const parts: string[] = [];
+  let current = allFolders.find(f => f.id === folderId);
+  while (current) {
+    parts.unshift(current.name);
+    current = current.parentId ? allFolders.find(f => f.id === current!.parentId) : undefined;
+  }
+  return parts.join(' / ');
+}
+
+export interface FolderTreeNode {
+  folder: QuizFolder;
+  depth: number;
+  path: string;
+}
+
+/**
+ * Get flattened list of folders in tree order with depth and full path,
+ * sorted alphabetically at every level.
+ */
+export function getSortedFolderTree(
+  allFolders: QuizFolder[],
+  parentId: string | null = null,
+  depth: number = 0
+): FolderTreeNode[] {
+  const currentLevel = allFolders
+    .filter(f => f.parentId === parentId)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+  let result: FolderTreeNode[] = [];
+  for (const f of currentLevel) {
+    const fullPath = buildFolderPath(f.id, allFolders);
+    result.push({ folder: f, depth, path: fullPath });
+    result = result.concat(getSortedFolderTree(allFolders, f.id, depth + 1));
+  }
+  return result;
+}
+
+/**
+ * Refresh folderPath on all quizzes (call after renaming a folder)
+ */
+async function refreshFolderPaths(): Promise<void> {
+  const allFolders = await getAllQuizFolders();
+  const quizzesRef = collection(db, 'adminQuizzes');
+  const snapshot = await getDocs(quizzesRef);
+  const batch = writeBatch(db);
+  let count = 0;
+  snapshot.docs.forEach(d => {
+    const data = d.data();
+    if (data.folderId) {
+      const newPath = buildFolderPath(data.folderId, allFolders);
+      if (newPath !== data.folderPath) {
+        batch.update(d.ref, { folderPath: newPath });
+        count++;
+      }
+    }
+  });
+  if (count > 0) await batch.commit();
+}
+
+/**
+ * Move a quiz to a different folder
+ */
+export async function moveQuizToFolder(quizId: string, folderId: string | null): Promise<void> {
+  const quizRef = doc(db, 'adminQuizzes', quizId);
+  if (folderId) {
+    const allFolders = await getAllQuizFolders();
+    const path = buildFolderPath(folderId, allFolders);
+    await updateDoc(quizRef, { folderId, folderPath: path, updatedAt: serverTimestamp() });
+  } else {
+    await updateDoc(quizRef, { folderId: null, folderPath: 'Other Quizzes', updatedAt: serverTimestamp() });
+  }
+}
+
+/**
+ * Copy a quiz into a folder (duplicates the quiz with a new ID)
+ */
+export async function copyQuizToFolder(quizId: string, targetFolderId: string | null): Promise<string> {
+  const quizRef = doc(db, 'adminQuizzes', quizId);
+  const snap = await getDoc(quizRef);
+  if (!snap.exists()) throw new Error('Quiz not found');
+
+  const data = snap.data();
+  const newRef = doc(collection(db, 'adminQuizzes'));
+
+  let folderPath = 'Other Quizzes';
+  if (targetFolderId) {
+    const allFolders = await getAllQuizFolders();
+    folderPath = buildFolderPath(targetFolderId, allFolders);
+  }
+
+  await setDoc(newRef, {
+    ...data,
+    quizId: newRef.id,
+    title: data.title + ' (Copy)',
+    folderId: targetFolderId || null,
+    folderPath,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return newRef.id;
 }
 
 // ==================== BAN MANAGEMENT ====================

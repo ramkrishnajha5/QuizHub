@@ -5,11 +5,11 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { getAllAdminQuizzes, updateAdminQuiz, deleteAdminQuiz, AdminQuiz } from '../utils/adminFirestore';
+import { getAllAdminQuizzes, updateAdminQuiz, deleteAdminQuiz, AdminQuiz, getAllQuizFolders, QuizFolder, moveQuizToFolder, copyQuizToFolder, createQuizFolder, renameQuizFolder, deleteQuizFolder, buildFolderPath, getSortedFolderTree } from '../utils/adminFirestore';
 import { logAdminAction } from '../utils/adminLogger';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronLeft, ChevronRight, FileText, Loader, Eye, Edit as PencilIcon, Trash2 as TrashIcon, CheckCircle, Check as CheckIcon, Save as SaveIcon, Loader as SpinnerIcon, X } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, FileText, Loader, Eye, Edit as PencilIcon, Trash2 as TrashIcon, CheckCircle, Check as CheckIcon, Save as SaveIcon, Loader as SpinnerIcon, X, FolderOpen, FolderPlus, ArrowRightLeft, Copy } from 'lucide-react';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
 import CustomModal from '../../components/CustomModal';
@@ -32,6 +32,17 @@ const ManageQuizzes: React.FC = () => {
   const [editError, setEditError] = useState('');
   const perPage = 10;
 
+  // Folder management state
+  const [folders, setFolders] = useState<QuizFolder[]>([]);
+  const [folderFilter, setFolderFilter] = useState<string>('all');
+  const [showFolderManager, setShowFolderManager] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renamingFolderName, setRenamingFolderName] = useState('');
+  const [moveCopyQuiz, setMoveCopyQuiz] = useState<{ quiz: AdminQuiz; mode: 'move' | 'copy' } | null>(null);
+  const [moveCopyTargetFolder, setMoveCopyTargetFolder] = useState<string>('');
+
   const loadQuizzes = async () => {
     setLoading(true);
     try {
@@ -44,7 +55,16 @@ const ManageQuizzes: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadQuizzes(); }, []);
+  useEffect(() => { loadQuizzes(); loadFolders(); }, []);
+
+  const loadFolders = async () => {
+    const data = await getAllQuizFolders();
+    setFolders(data);
+  };
+
+  const sortedFolderTree = useMemo(() => getSortedFolderTree(folders), [folders]);
+  const rootFolders = folders.filter(f => !f.parentId);
+  const getChildFolders = (parentId: string) => folders.filter(f => f.parentId === parentId);
 
   const filtered = useMemo(() => {
     let result = [...quizzes];
@@ -54,8 +74,10 @@ const ManageQuizzes: React.FC = () => {
     }
     if (statusFilter === 'published') result = result.filter(q => q.isPublished);
     if (statusFilter === 'draft') result = result.filter(q => !q.isPublished);
-    return result;
-  }, [quizzes, search, statusFilter]);
+    if (folderFilter === 'uncategorized') result = result.filter(q => !q.folderId);
+    else if (folderFilter !== 'all') result = result.filter(q => q.folderId === folderFilter);
+    return result.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }, [quizzes, search, statusFilter, folderFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
@@ -94,6 +116,70 @@ const ManageQuizzes: React.FC = () => {
           loadQuizzes();
         } catch (error) {
           showAlert({ title: 'Error', message: 'Failed to delete quiz', confirmStyle: 'danger' });
+        }
+      },
+    });
+  };
+
+  const handleMoveCopy = async () => {
+    if (!moveCopyQuiz) return;
+    const targetId = moveCopyTargetFolder || null;
+    try {
+      if (moveCopyQuiz.mode === 'move') {
+        await moveQuizToFolder(moveCopyQuiz.quiz.quizId, targetId);
+        await logAdminAction({ action: 'QUIZ_MOVED', performedBy: adminUser?.uid || '', performedByEmail: adminUser?.email || '', details: `Quiz "${moveCopyQuiz.quiz.title}" moved` });
+      } else {
+        await copyQuizToFolder(moveCopyQuiz.quiz.quizId, targetId);
+        await logAdminAction({ action: 'QUIZ_COPIED', performedBy: adminUser?.uid || '', performedByEmail: adminUser?.email || '', details: `Quiz "${moveCopyQuiz.quiz.title}" copied` });
+      }
+      setMoveCopyQuiz(null);
+      setMoveCopyTargetFolder('');
+      loadQuizzes();
+      showAlert({ title: 'Success', message: `Quiz ${moveCopyQuiz.mode === 'move' ? 'moved' : 'copied'} successfully!`, confirmStyle: 'success' });
+    } catch (error) {
+      showAlert({ title: 'Error', message: `Failed to ${moveCopyQuiz.mode} quiz`, confirmStyle: 'danger' });
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim() || !adminUser) return;
+    try {
+      await createQuizFolder(newFolderName.trim(), newFolderParentId, adminUser.uid);
+      setNewFolderName('');
+      setNewFolderParentId(null);
+      await loadFolders();
+    } catch (error) {
+      showAlert({ title: 'Error', message: 'Failed to create folder', confirmStyle: 'danger' });
+    }
+  };
+
+  const handleRenameFolder = async (folderId: string) => {
+    if (!renamingFolderName.trim()) return;
+    try {
+      await renameQuizFolder(folderId, renamingFolderName.trim());
+      setRenamingFolderId(null);
+      setRenamingFolderName('');
+      await loadFolders();
+      loadQuizzes();
+    } catch (error) {
+      showAlert({ title: 'Error', message: 'Failed to rename folder', confirmStyle: 'danger' });
+    }
+  };
+
+  const handleDeleteFolder = (folderId: string, folderName: string) => {
+    showConfirm({
+      title: 'Delete Folder',
+      message: `Delete folder "${folderName}"? Quizzes inside will be moved to "Other Quizzes".`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmStyle: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteQuizFolder(folderId);
+          await loadFolders();
+          loadQuizzes();
+        } catch (error) {
+          showAlert({ title: 'Error', message: 'Failed to delete folder', confirmStyle: 'danger' });
         }
       },
     });
@@ -240,7 +326,109 @@ const ManageQuizzes: React.FC = () => {
           <option value="published">Published</option>
           <option value="draft">Drafts</option>
         </select>
+        <select value={folderFilter} onChange={(e) => { setFolderFilter(e.target.value); setPage(1); }}
+          className="px-4 py-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white font-medium">
+          <option value="all">All Folders</option>
+          <option value="uncategorized">📁 Other Quizzes (Uncategorized)</option>
+          {sortedFolderTree.map(({ folder, path, depth }) => (
+            <option key={folder.id} value={folder.id}>
+              {'\u00A0\u00A0'.repeat(depth)}📂 {depth > 0 ? '└─ ' : ''}{folder.name} ({path})
+            </option>
+          ))}
+        </select>
+        <button onClick={() => setShowFolderManager(!showFolderManager)}
+          className={`px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition ${
+            showFolderManager ? 'bg-purple-600 text-white' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+          }`}>
+          <FolderOpen size={16} /> Folders
+        </button>
       </div>
+
+      {/* Folder Manager Panel */}
+      <AnimatePresence>
+        {showFolderManager && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="mb-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl border border-purple-200 dark:border-purple-800 overflow-hidden">
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <FolderOpen size={20} className="text-purple-500" /> Manage Folders &amp; Subfolders
+              </h3>
+
+              {/* Create New Folder */}
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Parent Folder</label>
+                  <select value={newFolderParentId || ''} onChange={(e) => setNewFolderParentId(e.target.value || null)}
+                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-900 dark:text-white">
+                    <option value="">📁 None (Root Level Folder)</option>
+                    {sortedFolderTree.map(({ folder, path, depth }) => (
+                      <option key={folder.id} value={folder.id}>
+                        {'\u00A0\u00A0'.repeat(depth)}📂 {depth > 0 ? '└─ ' : ''}{path}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Folder Name</label>
+                  <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="e.g. SSC CGL or Chapterwise"
+                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-900 dark:text-white" />
+                </div>
+                <button onClick={handleCreateFolder} disabled={!newFolderName.trim()}
+                  className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition">
+                  <FolderPlus size={14} /> Create Folder
+                </button>
+              </div>
+
+              {/* Folder List */}
+              {folders.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No folders yet. Create one above.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">
+                  {sortedFolderTree.map(({ folder, path, depth }) => (
+                    <div
+                      key={folder.id}
+                      style={{ marginLeft: `${depth * 20}px` }}
+                      className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-100 dark:border-gray-700/50"
+                    >
+                      <span className="text-sm">{depth === 0 ? '📁' : '📂'}</span>
+                      {renamingFolderId === folder.id ? (
+                        <div className="flex gap-2 flex-1">
+                          <input type="text" value={renamingFolderName} onChange={(e) => setRenamingFolderName(e.target.value)}
+                            className="flex-1 p-1 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded text-sm text-gray-900 dark:text-white" />
+                          <button onClick={() => handleRenameFolder(folder.id)} className="text-green-600 text-xs font-bold">Save</button>
+                          <button onClick={() => setRenamingFolderId(null)} className="text-gray-400 text-xs">Cancel</button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-sm text-gray-900 dark:text-white truncate block ${depth === 0 ? 'font-bold' : 'font-medium'}`}>
+                              {folder.name}
+                            </span>
+                            {depth > 0 && (
+                              <span className="text-[10px] text-gray-400 dark:text-gray-400 block truncate">{path}</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => { setNewFolderParentId(folder.id); setNewFolderName(''); }}
+                            className="text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30"
+                            title="Create subfolder inside this folder"
+                          >
+                            + Subfolder
+                          </button>
+                          <button onClick={() => { setRenamingFolderId(folder.id); setRenamingFolderName(folder.name); }}
+                            className="text-xs text-blue-500 hover:underline font-medium">Rename</button>
+                          <button onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                            className="text-xs text-red-500 hover:underline font-medium">Delete</button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Table */}
       {loading ? (
@@ -270,7 +458,15 @@ const ManageQuizzes: React.FC = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {paged.map((quiz) => (
                   <tr key={quiz.quizId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                    <td className="px-5 py-4 font-semibold text-gray-900 dark:text-white text-sm">{quiz.title}</td>
+                    <td className="px-5 py-4">
+                      <span className="font-semibold text-gray-900 dark:text-white text-sm">{quiz.title}</span>
+                      {quiz.folderPath && (
+                        <p className="text-xs text-purple-500 dark:text-purple-400 mt-0.5 font-medium">📂 {quiz.folderPath}</p>
+                      )}
+                      {!quiz.folderId && !quiz.folderPath && (
+                        <p className="text-xs text-gray-400 mt-0.5">📁 Other Quizzes</p>
+                      )}
+                    </td>
                     <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-300 hidden md:table-cell">{quiz.category}</td>
                     <td className="px-5 py-4 text-center hidden sm:table-cell">
                       <span className={`px-2 py-1 text-xs font-bold rounded-full ${
@@ -328,6 +524,12 @@ const ManageQuizzes: React.FC = () => {
                           </button>
                           <button onClick={() => handleDelete(quiz)} className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition" title="Delete">
                             <TrashIcon size={18} />
+                          </button>
+                          <button onClick={() => { setMoveCopyQuiz({ quiz, mode: 'move' }); setMoveCopyTargetFolder(''); }} className="p-2 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 text-orange-600 dark:text-orange-400 transition" title="Move to Folder">
+                            <ArrowRightLeft size={16} />
+                          </button>
+                          <button onClick={() => { setMoveCopyQuiz({ quiz, mode: 'copy' }); setMoveCopyTargetFolder(''); }} className="p-2 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 transition" title="Copy to Folder">
+                            <Copy size={16} />
                           </button>
                         </div>
                       </div>
@@ -512,6 +714,81 @@ const ManageQuizzes: React.FC = () => {
                 <button onClick={() => setShowEditModal(false)} className="px-5 py-2 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
                 <button onClick={saveQuizChanges} disabled={saving} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-lg font-bold text-sm hover:opacity-90 shadow-md transition-all disabled:opacity-50 flex items-center gap-2">
                   {saving ? <><SpinnerIcon className="w-4 h-4 animate-spin" /> Saving...</> : <><SaveIcon className="w-4 h-4" /> Save Changes</>}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Move / Copy Modal */}
+      <AnimatePresence>
+        {moveCopyQuiz && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="admin-modal-overlay"
+            onClick={() => setMoveCopyQuiz(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="admin-modal-box bg-white dark:bg-gray-800 shadow-2xl w-full max-w-md overflow-hidden rounded-2xl p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  {moveCopyQuiz.mode === 'move' ? <ArrowRightLeft className="w-5 h-5 text-orange-500" /> : <Copy className="w-5 h-5 text-cyan-500" />}
+                  {moveCopyQuiz.mode === 'move' ? 'Move Quiz' : 'Copy Quiz'}
+                </h3>
+                <button onClick={() => setMoveCopyQuiz(null)} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                Quiz: <span className="font-semibold text-gray-900 dark:text-white">{moveCopyQuiz.quiz.title}</span>
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Current Location: <span className="font-medium text-purple-600 dark:text-purple-400">{moveCopyQuiz.quiz.folderPath || 'Other Quizzes'}</span>
+              </p>
+
+              <div className="mb-6">
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                  Select Destination Folder
+                </label>
+                <select
+                  value={moveCopyTargetFolder}
+                  onChange={(e) => setMoveCopyTargetFolder(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:border-purple-500 outline-none"
+                >
+                  <option value="">📁 Other Quizzes (No folder)</option>
+                  {sortedFolderTree.map(({ folder, path, depth }) => (
+                    <option key={folder.id} value={folder.id}>
+                      {'\u00A0\u00A0'.repeat(depth)}📂 {depth > 0 ? '└─ ' : ''}{path}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setMoveCopyQuiz(null)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleMoveCopy}
+                  className={`px-5 py-2 rounded-xl text-sm font-bold text-white shadow-md transition flex items-center gap-2 ${
+                    moveCopyQuiz.mode === 'move'
+                      ? 'bg-orange-500 hover:bg-orange-600'
+                      : 'bg-cyan-500 hover:bg-cyan-600'
+                  }`}
+                >
+                  {moveCopyQuiz.mode === 'move' ? 'Move Quiz' : 'Copy Quiz'}
                 </button>
               </div>
             </motion.div>

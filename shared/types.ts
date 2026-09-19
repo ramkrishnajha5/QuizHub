@@ -70,3 +70,40 @@ export interface DashboardStats {
   streak: number;
   lastQuizDate: number | null;
 }
+
+export interface QuizFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  order: number;
+  createdAt?: any;
+  createdBy?: string;
+}
+
+export interface AdminQuizQuestion {
+  questionId: string;
+  questionText: string;
+  options: string[];
+  correctOption: number;
+  explanation?: string;
+}
+
+export interface AdminQuiz {
+  quizId: string;
+  title: string;
+  category: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  createdBy: string;
+  createdAt?: any;
+  updatedAt?: any;
+  isPublished: boolean;
+  totalQuestions: number;
+  timeLimitMinutes?: number;
+  negativeMarking?: boolean;
+  hasTimeRestriction?: boolean;
+  availableFrom?: any;
+  availableUntil?: any;
+  questions?: AdminQuizQuestion[];
+  folderId?: string | null;
+  folderPath?: string;
+}

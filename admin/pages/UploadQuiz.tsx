@@ -4,14 +4,14 @@
  * Supports manual question entry and JSON import
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import QuestionCard from '../components/QuestionCard';
-import { createAdminQuiz, AdminQuizQuestion } from '../utils/adminFirestore';
+import { createAdminQuiz, AdminQuizQuestion, getAllQuizFolders, createQuizFolder, buildFolderPath, getSortedFolderTree, QuizFolder } from '../utils/adminFirestore';
 import { logAdminAction } from '../utils/adminLogger';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Plus, Save, Send, Upload, FileJson, Loader, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Save, Send, Upload, FileJson, Loader, CheckCircle, AlertTriangle, FolderOpen, FolderPlus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 const QUIZ_CATEGORIES = [
@@ -60,10 +60,54 @@ const UploadQuiz: React.FC = () => {
   const [questions, setQuestions] = useState<QuestionFormData[]>([blankQuestion()]);
   const [errors, setErrors] = useState<Record<number, Record<string, string>>>({});
 
+  // Folder selection
+  const [folders, setFolders] = useState<QuizFolder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+
   // Status
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Load folders
+  useEffect(() => {
+    const loadFolders = async () => {
+      const data = await getAllQuizFolders();
+      setFolders(data);
+    };
+    loadFolders();
+  }, []);
+
+  const sortedFolderTree = useMemo(() => getSortedFolderTree(folders), [folders]);
+  const selectedFolder = useMemo(() => folders.find(f => f.id === selectedFolderId), [folders, selectedFolderId]);
+  const parentFolder = useMemo(() => folders.find(f => f.id === newFolderParentId), [folders, newFolderParentId]);
+  const previewPath = useMemo(() => {
+    if (!newFolderName.trim()) return '';
+    if (!parentFolder) return newFolderName.trim();
+    return `${buildFolderPath(parentFolder.id, folders)} / ${newFolderName.trim()}`;
+  }, [newFolderName, parentFolder, folders]);
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim() || !adminUser) return;
+    setCreatingFolder(true);
+    try {
+      const newId = await createQuizFolder(newFolderName.trim(), newFolderParentId, adminUser.uid);
+      const updated = await getAllQuizFolders();
+      setFolders(updated);
+      setSelectedFolderId(newId);
+      setNewFolderName('');
+      setNewFolderParentId(null);
+      setShowCreateFolder(false);
+    } catch (err) {
+      setErrorMsg('Failed to create folder');
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
 
   const handleQuestionChange = (index: number, data: QuestionFormData) => {
     const updated = [...questions];
@@ -148,6 +192,8 @@ const UploadQuiz: React.FC = () => {
         explanation: q.explanation.trim() || undefined,
       }));
 
+      const folderPath = selectedFolderId ? buildFolderPath(selectedFolderId, folders) : 'Other Quizzes';
+
       const quizId = await createAdminQuiz({
         title: title.trim(),
         category: category.trim(),
@@ -162,6 +208,8 @@ const UploadQuiz: React.FC = () => {
         isPublished: publish,
         totalQuestions: questions.length,
         questions: quizQuestions,
+        folderId: selectedFolderId || null,
+        folderPath,
       });
 
       await logAdminAction({
@@ -316,6 +364,144 @@ const UploadQuiz: React.FC = () => {
                   maxLength={60}
                   className="w-full p-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
                 />
+              </div>
+
+              {/* Save to Folder */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <FolderOpen size={16} className="text-purple-500" />
+                    Save to Folder
+                  </label>
+                  {selectedFolder && (
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-md">
+                      📂 {buildFolderPath(selectedFolder.id, folders)}
+                    </span>
+                  )}
+                </div>
+
+                <select
+                  value={selectedFolderId || ''}
+                  onChange={(e) => setSelectedFolderId(e.target.value || null)}
+                  className="w-full p-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                >
+                  <option value="">📁 Other Quizzes (Uncategorized)</option>
+                  {sortedFolderTree.map(({ folder, path, depth }) => (
+                    <option key={folder.id} value={folder.id}>
+                      {'\u00A0\u00A0'.repeat(depth)}📂 {depth > 0 ? '└─ ' : ''}{folder.name} ({path})
+                    </option>
+                  ))}
+                </select>
+
+                {/* Create Folder / Subfolder Actions */}
+                {!showCreateFolder ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewFolderParentId(null);
+                        setNewFolderName('');
+                        setShowCreateFolder(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition"
+                    >
+                      <FolderPlus size={14} /> + New Root Folder
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewFolderParentId(selectedFolderId || null);
+                        setNewFolderName('');
+                        setShowCreateFolder(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
+                    >
+                      <FolderPlus size={14} />
+                      {selectedFolder ? `+ New Subfolder in "${selectedFolder.name}"` : '+ New Subfolder'}
+                    </button>
+                  </div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mt-3 p-4 bg-purple-50/70 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                        <FolderPlus size={15} /> Create Folder or Subfolder
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateFolder(false)}
+                        className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                        Parent Folder (leave empty to create at Root Level)
+                      </label>
+                      <select
+                        value={newFolderParentId || ''}
+                        onChange={(e) => setNewFolderParentId(e.target.value || null)}
+                        className="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white font-medium"
+                      >
+                        <option value="">📁 None (Create as Root Level Folder)</option>
+                        {sortedFolderTree.map(({ folder, path, depth }) => (
+                          <option key={folder.id} value={folder.id}>
+                            {'\u00A0\u00A0'.repeat(depth)}📂 {depth > 0 ? '└─ ' : ''}{path}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                        To create a subfolder inside a subfolder (e.g. SSC &gt; SSC CGL &gt; Chapterwise), choose its parent here.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                        Folder Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        placeholder="e.g. SSC CGL or Chapterwise or Full Length"
+                        maxLength={50}
+                        className="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white font-medium focus:border-purple-500 outline-none"
+                      />
+                    </div>
+
+                    {previewPath ? (
+                      <div className="p-2.5 rounded-lg bg-white dark:bg-gray-800 border border-purple-100 dark:border-purple-900/50">
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 block font-semibold">New Folder Path:</span>
+                        <span className="text-xs font-bold text-purple-600 dark:text-purple-400">📂 {previewPath}</span>
+                      </div>
+                    ) : null}
+
+                    <div className="flex gap-2 justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateFolder(false)}
+                        className="px-3 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateFolder}
+                        disabled={creatingFolder || !newFolderName.trim()}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg disabled:opacity-50 transition flex items-center gap-1.5 shadow"
+                      >
+                        {creatingFolder ? <Loader className="animate-spin" size={13} /> : <FolderPlus size={13} />}
+                        Create &amp; Select
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div>

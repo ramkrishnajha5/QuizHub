@@ -16,6 +16,11 @@ export type AdminAction =
   | 'QUIZ_DELETED'
   | 'QUIZ_PUBLISHED'
   | 'QUIZ_UNPUBLISHED'
+  | 'QUIZ_MOVED'
+  | 'QUIZ_COPIED'
+  | 'FOLDER_CREATED'
+  | 'FOLDER_RENAMED'
+  | 'FOLDER_DELETED'
   | 'ADMIN_ADDED'
   | 'CONFIG_UPDATED';
 
