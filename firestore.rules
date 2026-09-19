@@ -52,10 +52,10 @@ service cloud.firestore {
     }
 
     // Admin-uploaded quizzes
-    // Read: any authenticated user (for main app quiz setup)
+    // Read: anyone (public browsing for non-logged in users)
     // Write: admins only
     match /adminQuizzes/{quizId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -75,6 +75,14 @@ service cloud.firestore {
 
     match /adminNotifications/{notifId} {
       allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Quiz folders — hierarchical organization for admin quizzes
+    // Read: anyone (public browsing for non-logged in users)
+    // Write: admins only
+    match /quizFolders/{folderId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 

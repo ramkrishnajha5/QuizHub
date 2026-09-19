@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchCategories } from '../utils/api';
 import { Category } from '../types';
 import { motion } from 'framer-motion';
 import { TIMERS, QUESTION_COUNTS } from '../constants';
 import { clearQuizState } from '../utils/idb';
-import { Brain, Clock, ListChecks, Sparkles, Play, Star, ChevronRight, X, Lock, Unlock, CalendarDays } from 'lucide-react';
+import { Brain, Clock, ListChecks, Sparkles, Play, Star, ChevronRight, X, Lock, Unlock, CalendarDays, Folder, FolderOpen, ArrowLeft, Search } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
-import { getPublishedAdminQuizzes, AdminQuiz } from '../admin/utils/adminFirestore';
+import { getPublishedAdminQuizzes, AdminQuiz, getAllQuizFolders, QuizFolder } from '../admin/utils/adminFirestore';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
@@ -17,12 +17,15 @@ import { useCustomModal } from '../hooks/useCustomModal';
 
 const QuizSetup: React.FC = () => {
   const { currentUser } = useAuth();
-  const { modalState, showAlert, closeModal } = useCustomModal();
+  const { modalState, showAlert, showConfirm, closeModal } = useCustomModal();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [questionCount, setQuestionCount] = useState<number>(15); // Default to 15 questions
   const [loading, setLoading] = useState(true);
   const [customQuizzes, setCustomQuizzes] = useState<AdminQuiz[]>([]);
+  const [folders, setFolders] = useState<QuizFolder[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [quizSearch, setQuizSearch] = useState('');
   const [infoModalQuiz, setInfoModalQuiz] = useState<AdminQuiz | null>(null);
   const navigate = useNavigate();
 
@@ -65,33 +68,121 @@ const QuizSetup: React.FC = () => {
   };
 
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadData = async () => {
       try {
-        const cats = await fetchCategories();
+        const [cats, quizzes, folderList] = await Promise.all([
+          fetchCategories(),
+          getPublishedAdminQuizzes(),
+          getAllQuizFolders(),
+        ]);
         setCategories(cats);
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        setLoading(false);
-      }
-    };
-    loadCategories();
-
-    // Load custom admin quizzes
-    const loadCustomQuizzes = async () => {
-      try {
-        const quizzes = await getPublishedAdminQuizzes();
         setCustomQuizzes(quizzes);
+        setFolders(folderList);
       } catch (err) {
-        console.error('Could not load custom quizzes:', err);
+        console.error('Error loading setup data:', err);
+      } finally {
+        setLoading(false);
       }
     };
-    loadCustomQuizzes();
+    loadData();
   }, []);
 
+  // Folder helper calculations
+  const getDescendantFolderIds = (parentId: string): string[] => {
+    const children = folders.filter(f => f.parentId === parentId);
+    let result: string[] = [];
+    for (const child of children) {
+      result.push(child.id);
+      result = result.concat(getDescendantFolderIds(child.id));
+    }
+    return result;
+  };
+
+  const getQuizCountInFolder = (folderId: string): number => {
+    const allIds = new Set([folderId, ...getDescendantFolderIds(folderId)]);
+    return customQuizzes.filter(q => q.folderId && allIds.has(q.folderId)).length;
+  };
+
+  const getSubfolderCount = (folderId: string): number => {
+    return folders.filter(f => f.parentId === folderId).length;
+  };
+
+  const uncategorizedQuizzes = useMemo(() => {
+    const validIds = new Set(folders.map(f => f.id));
+    return customQuizzes
+      .filter(q => !q.folderId || !validIds.has(q.folderId))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }, [customQuizzes, folders]);
+
+  const breadcrumbTrail = useMemo(() => {
+    if (currentFolderId === '__other__') {
+      return [
+        { id: null, name: 'All Categories' },
+        { id: '__other__', name: 'Other Quizzes' },
+      ];
+    }
+    if (!currentFolderId) {
+      return [{ id: null, name: 'All Categories' }];
+    }
+    const trail: { id: string | null; name: string }[] = [];
+    let curr: QuizFolder | undefined = folders.find(f => f.id === currentFolderId);
+    while (curr) {
+      trail.unshift({ id: curr.id, name: curr.name });
+      curr = curr.parentId ? folders.find(f => f.id === curr!.parentId) : undefined;
+    }
+    trail.unshift({ id: null, name: 'All Categories' });
+    return trail;
+  }, [currentFolderId, folders]);
+
+  const parentFolderId = useMemo(() => {
+    if (currentFolderId === '__other__') return null;
+    if (!currentFolderId) return null;
+    const current = folders.find(f => f.id === currentFolderId);
+    return current?.parentId || null;
+  }, [currentFolderId, folders]);
+
+  // Items to display at the current folder level — sorted alphabetically
+  const displayedFolders = useMemo(() => {
+    if (quizSearch.trim() || currentFolderId === '__other__') return [];
+    return folders
+      .filter(f => f.parentId === currentFolderId)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }, [folders, currentFolderId, quizSearch]);
+
+  const displayedQuizzes = useMemo(() => {
+    if (quizSearch.trim()) return [];
+    if (currentFolderId === '__other__') return uncategorizedQuizzes;
+    if (!currentFolderId) return [];
+    return customQuizzes
+      .filter(q => q.folderId === currentFolderId)
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }, [customQuizzes, currentFolderId, uncategorizedQuizzes, quizSearch]);
+
+  const searchResults = useMemo(() => {
+    const q = quizSearch.toLowerCase().trim();
+    if (!q) return [];
+    return customQuizzes
+      .filter(quiz =>
+        quiz.title.toLowerCase().includes(q) ||
+        quiz.category.toLowerCase().includes(q) ||
+        (quiz.folderPath && quiz.folderPath.toLowerCase().includes(q))
+      )
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }, [customQuizzes, quizSearch]);
+
   const checkBanAndStart = async (quizConfig: any) => {
+    if (!currentUser) {
+      showConfirm({
+        title: 'Login Required',
+        message: 'You need to be logged in to attempt this quiz and track your performance. Please log in or create an account.',
+        confirmText: 'Log In',
+        cancelText: 'Cancel',
+        confirmStyle: 'primary',
+        onConfirm: () => navigate('/login'),
+      });
+      return;
+    }
     try {
-      if (!currentUser) { navigate('/login'); return; }
       const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
       if (!userSnap.exists() || userSnap.data()?.isBanned === true) {
         await signOut(auth);
@@ -170,65 +261,284 @@ const QuizSetup: React.FC = () => {
             </div>
           </div>
 
-          {/* Custom Quizzes by QuizHub Team -> Moved ABOVE standard configurator */}
-          {customQuizzes.length > 0 && (
+          {/* Hierarchical Test Series & Quizzes Section */}
+          {(customQuizzes.length > 0 || folders.length > 0) && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
               className="border-b-4 border-gray-100 dark:border-gray-800"
             >
+              {/* Section Header */}
               <div className="bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 px-8 py-5">
-                <div className="flex items-center gap-3">
-                  <Star className="w-8 h-8 text-white" />
-                  <div>
-                    <h3 className="text-2xl font-extrabold text-white">Quizzes by QuizHub Team</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Star className="w-8 h-8 text-white flex-shrink-0" />
+                    <div>
+                      <h3 className="text-2xl font-extrabold text-white">Quizzes by QuizHub Team</h3>
+                      <p className="text-xs text-orange-100 mt-0.5">Section-wise test series & curated quizzes</p>
+                    </div>
+                  </div>
+                  {/* Search Bar */}
+                  <div className="relative w-full sm:w-64">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70" />
+                    <input
+                      type="text"
+                      placeholder="Search quizzes..."
+                      value={quizSearch}
+                      onChange={(e) => setQuizSearch(e.target.value)}
+                      className="w-full pl-9 pr-8 py-1.5 rounded-full bg-white/20 text-white placeholder-white/70 text-xs backdrop-blur-md outline-none border border-white/30 focus:bg-white/30 focus:border-white transition"
+                    />
+                    {quizSearch && (
+                      <button
+                        onClick={() => setQuizSearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="p-8 grid sm:grid-cols-2 gap-4 bg-gray-50/50 dark:bg-gray-800/30">
-                {customQuizzes.map((quiz) => {
-                  const status = getAvailabilityStatus(quiz);
-                  return (
-                    <motion.button
-                      key={quiz.quizId}
-                      onClick={() => setInfoModalQuiz(quiz)}
-                      whileHover={{ scale: 1.02, y: -4 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="text-left p-5 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800/80 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 transition-all shadow-sm hover:shadow-md group relative overflow-hidden"
-                    >
-                      {status.locked && <div className="absolute inset-0 bg-gray-100/30 dark:bg-gray-900/30 backdrop-blur-[1px] z-10 pointers-events-none" />}
-                      <div className="relative z-20">
-                        <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
-                          <div className="flex gap-2.5">
-                            <span className={`px-2 py-1 text-xs font-bold rounded-md ${
-                              quiz.difficulty === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : quiz.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            } capitalize shadow-sm`}>
-                              {quiz.difficulty}
-                            </span>
-                            <span className={`px-2 py-1 text-xs font-bold rounded-md shadow-sm ${status.color}`}>
-                              {status.text}
-                            </span>
-                          </div>
-                          {!status.locked && (
-                            <ChevronRight size={18} className="text-gray-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+
+              <div className="p-6 md:p-8 bg-gray-50/50 dark:bg-gray-800/30">
+                {/* Search Results Mode */}
+                {quizSearch.trim() ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Search results for "<span className="text-purple-600 dark:text-purple-400">{quizSearch}</span>" ({searchResults.length})
+                      </p>
+                      <button
+                        onClick={() => setQuizSearch('')}
+                        className="text-xs text-purple-600 dark:text-purple-400 hover:underline font-semibold"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+
+                    {searchResults.length === 0 ? (
+                      <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+                        <p className="font-semibold text-sm">No quizzes found matching your search</p>
+                        <p className="text-xs mt-1">Try another keyword or browse categories below</p>
+                      </div>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {searchResults.map((quiz) => {
+                          const status = getAvailabilityStatus(quiz);
+                          return (
+                            <motion.button
+                              key={quiz.quizId}
+                              onClick={() => setInfoModalQuiz(quiz)}
+                              whileHover={{ scale: 1.02, y: -3 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="text-left p-5 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 transition-all shadow-sm hover:shadow-md group relative overflow-hidden"
+                            >
+                              {status.locked && <div className="absolute inset-0 bg-gray-100/30 dark:bg-gray-900/30 backdrop-blur-[1px] z-10 pointer-events-none" />}
+                              <div className="relative z-20">
+                                <div className="flex flex-wrap items-center justify-between mb-2 gap-2">
+                                  <div className="flex gap-2">
+                                    <span className={`px-2 py-0.5 text-xs font-bold rounded-md capitalize ${
+                                      quiz.difficulty === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                        : quiz.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                    }`}>
+                                      {quiz.difficulty}
+                                    </span>
+                                    <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${status.color}`}>
+                                      {status.text}
+                                    </span>
+                                  </div>
+                                  {!status.locked ? (
+                                    <ChevronRight size={18} className="text-gray-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+                                  ) : (
+                                    <Lock size={16} className="text-gray-400" />
+                                  )}
+                                </div>
+                                <h4 className="text-base font-bold text-gray-900 dark:text-white mb-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">{quiz.title}</h4>
+                                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mb-2">
+                                  📂 {quiz.folderPath || 'Other Quizzes'}
+                                </p>
+                                <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300 font-medium">
+                                  <span>📝 {quiz.totalQuestions} Questions</span>
+                                  <span>⏱️ {quiz.timeLimitMinutes || 10} Mins</span>
+                                </div>
+                              </div>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Folder Navigation Mode */
+                  <div>
+                    {/* Breadcrumbs & Back Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-6 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <div className="flex items-center gap-1.5 flex-wrap text-sm">
+                        {breadcrumbTrail.map((crumb, idx) => {
+                          const isLast = idx === breadcrumbTrail.length - 1;
+                          return (
+                            <React.Fragment key={crumb.id ?? 'root'}>
+                              {idx > 0 && <span className="text-gray-400 text-xs">/</span>}
+                              <button
+                                onClick={() => setCurrentFolderId(crumb.id)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                  isLast
+                                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 pointer-events-none'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-purple-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                {idx === 0 ? '🏠 All Categories' : crumb.name}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+
+                      {currentFolderId && (
+                        <button
+                          onClick={() => setCurrentFolderId(parentFolderId)}
+                          className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-600 transition"
+                        >
+                          <ArrowLeft size={14} /> Back
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Sub-Folders Section */}
+                    {(displayedFolders.length > 0 || (currentFolderId === null && uncategorizedQuizzes.length > 0)) && (
+                      <div className="mb-6">
+                        {currentFolderId && (
+                          <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider mb-3">
+                            Sub-Sections & Categories
+                          </h4>
+                        )}
+                        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {displayedFolders.map((folder) => {
+                            const count = getQuizCountInFolder(folder.id);
+                            const subs = getSubfolderCount(folder.id);
+                            return (
+                              <motion.button
+                                key={folder.id}
+                                onClick={() => setCurrentFolderId(folder.id)}
+                                whileHover={{ scale: 1.02, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 shadow-sm hover:shadow-md transition text-left group"
+                              >
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-lg shadow flex-shrink-0 group-hover:scale-110 transition-transform">
+                                  📂
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="font-bold text-gray-900 dark:text-white text-sm truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
+                                    {folder.name}
+                                  </h5>
+                                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    {count} {count === 1 ? 'quiz' : 'quizzes'}
+                                    {subs > 0 && ` • ${subs} sub-folder${subs === 1 ? '' : 's'}`}
+                                  </p>
+                                </div>
+                                <ChevronRight size={18} className="text-gray-400 group-hover:text-purple-500 group-hover:translate-x-0.5 transition" />
+                              </motion.button>
+                            );
+                          })}
+
+                          {/* Fallback "Other Quizzes" folder at root level */}
+                          {currentFolderId === null && uncategorizedQuizzes.length > 0 && (
+                            <motion.button
+                              key="__other__"
+                              onClick={() => setCurrentFolderId('__other__')}
+                              whileHover={{ scale: 1.02, y: -2 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 shadow-sm hover:shadow-md transition text-left group"
+                            >
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-lg shadow flex-shrink-0 group-hover:scale-110 transition-transform">
+                                📁
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h5 className="font-bold text-gray-900 dark:text-white text-sm truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
+                                  Other Quizzes
+                                </h5>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                  {uncategorizedQuizzes.length} {uncategorizedQuizzes.length === 1 ? 'quiz' : 'quizzes'}
+                                </p>
+                              </div>
+                              <ChevronRight size={18} className="text-gray-400 group-hover:text-purple-500 group-hover:translate-x-0.5 transition" />
+                            </motion.button>
                           )}
-                          {status.locked && (
-                            <Lock size={16} className="text-gray-400" />
-                          )}
-                        </div>
-                        <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">{quiz.title}</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{quiz.category}</p>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">📝 {quiz.totalQuestions} Questions</p>
-                          <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">⏱️ {quiz.timeLimitMinutes || 10} Minutes</p>
                         </div>
                       </div>
-                    </motion.button>
-                  );
-                })}
+                    )}
+
+                    {/* Direct Quizzes Section */}
+                    {displayedQuizzes.length > 0 && (
+                      <div>
+                        {displayedFolders.length > 0 && (
+                          <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider mb-3">
+                            Tests & Quizzes
+                          </h4>
+                        )}
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          {displayedQuizzes.map((quiz) => {
+                            const status = getAvailabilityStatus(quiz);
+                            return (
+                              <motion.button
+                                key={quiz.quizId}
+                                onClick={() => setInfoModalQuiz(quiz)}
+                                whileHover={{ scale: 1.02, y: -3 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="text-left p-5 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 transition-all shadow-sm hover:shadow-md group relative overflow-hidden"
+                              >
+                                {status.locked && <div className="absolute inset-0 bg-gray-100/30 dark:bg-gray-900/30 backdrop-blur-[1px] z-10 pointer-events-none" />}
+                                <div className="relative z-20">
+                                  <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
+                                    <div className="flex gap-2">
+                                      <span className={`px-2 py-0.5 text-xs font-bold rounded-md capitalize ${
+                                        quiz.difficulty === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                          : quiz.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                          : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                      }`}>
+                                        {quiz.difficulty}
+                                      </span>
+                                      <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${status.color}`}>
+                                        {status.text}
+                                      </span>
+                                    </div>
+                                    {!status.locked ? (
+                                      <ChevronRight size={18} className="text-gray-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+                                    ) : (
+                                      <Lock size={16} className="text-gray-400" />
+                                    )}
+                                  </div>
+                                  <h4 className="text-base font-bold text-gray-900 dark:text-white mb-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">{quiz.title}</h4>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{quiz.category}</p>
+                                  <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300 font-medium">
+                                    <span>📝 {quiz.totalQuestions} Questions</span>
+                                    <span>⏱️ {quiz.timeLimitMinutes || 10} Mins</span>
+                                    {quiz.negativeMarking && (
+                                      <span className="text-red-500 font-semibold">⚠ -0.25</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Empty State */}
+                    {displayedFolders.length === 0 && displayedQuizzes.length === 0 && (
+                      <div className="text-center py-12 px-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+                        <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-2xl">
+                          📂
+                        </div>
+                        <h4 className="text-base font-bold text-gray-800 dark:text-gray-200">No quizzes in this section yet</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Tests will appear here once uploaded by the QuizHub team.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -479,6 +789,8 @@ const QuizSetup: React.FC = () => {
                         >
                           {status.locked ? (
                             <> <Lock className="w-5 h-5" /> Locked </>
+                          ) : !currentUser ? (
+                            <> <Lock className="w-5 h-5" /> Log In to Attempt Quiz </>
                           ) : (
                             <> 🚀 Start Quiz </>
                           )}

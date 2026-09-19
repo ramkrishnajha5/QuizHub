@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Brain, Clock, ListChecks, Sparkles, Play, Star, Lock, Unlock, ChevronRight, X } from 'lucide-react-native';
+import { Brain, Clock, ListChecks, Sparkles, Play, Star, Lock, Unlock, ChevronRight, X, Folder, ArrowLeft, Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchCategories } from '../shared/api';
 import { TIMERS, QUESTION_COUNTS } from '../shared/constants';
-import { Category } from '../shared/types';
+import { Category, QuizFolder, AdminQuiz } from '../shared/types';
 import { clearQuizState } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../utils/firebase';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,41 +25,133 @@ export default function QuizSetupScreen() {
   const [questionCount, setQuestionCount] = useState<number>(15);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'alert' as const, confirmText: 'OK', cancelText: 'No', confirmStyle: 'primary' as const, onConfirm: null as (() => void) | null });
-  const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
-  const [infoModalQuiz, setInfoModalQuiz] = useState<any | null>(null);
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'confirm' | 'alert';
+    confirmText: string;
+    cancelText: string;
+    confirmStyle: 'primary' | 'danger';
+    onConfirm: (() => void) | null;
+  }>({ isOpen: false, title: '', message: '', type: 'alert', confirmText: 'OK', cancelText: 'No', confirmStyle: 'primary', onConfirm: null });
+  const [customQuizzes, setCustomQuizzes] = useState<AdminQuiz[]>([]);
+  const [folders, setFolders] = useState<QuizFolder[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [quizSearch, setQuizSearch] = useState('');
+  const [infoModalQuiz, setInfoModalQuiz] = useState<AdminQuiz | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadData = async () => {
       try {
-        const cats = await fetchCategories();
+        const [cats, quizzesSnap, foldersSnap] = await Promise.all([
+          fetchCategories().catch(() => []),
+          getDocs(query(collection(db, 'adminQuizzes'), where('isPublished', '==', true))).catch(() => ({ docs: [] })),
+          getDocs(query(collection(db, 'quizFolders'), orderBy('order', 'asc'))).catch(() => getDocs(collection(db, 'quizFolders'))).catch(() => ({ docs: [] })),
+        ]);
         setCategories(cats);
-      } catch (err) {
-        console.error(err);
-      }
-      setLoading(false);
-    };
-    loadCategories();
 
-    const loadCustomQuizzes = async () => {
-      try {
-        const quizzesRef = collection(db, 'adminQuizzes');
-        const q = query(quizzesRef, where('isPublished', '==', true));
-        const snapshot = await getDocs(q);
-        const quizzes = snapshot.docs.map(d => ({ quizId: d.id, ...d.data() } as any));
-        quizzes.sort((a, b) => {
-          const timeA = a.createdAt?.seconds || 0;
-          const timeB = b.createdAt?.seconds || 0;
+        const quizzes = (quizzesSnap as any).docs.map((d: any) => ({ quizId: d.id, ...d.data() } as AdminQuiz));
+        quizzes.sort((a: AdminQuiz, b: AdminQuiz) => {
+          const timeA = (a.createdAt as any)?.seconds || 0;
+          const timeB = (b.createdAt as any)?.seconds || 0;
           return timeB - timeA;
         });
         setCustomQuizzes(quizzes);
+
+        const folderList = (foldersSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() } as QuizFolder));
+        setFolders(folderList);
       } catch (err) {
-        console.error('Could not load custom quizzes:', err);
+        console.error('Could not load data:', err);
+      } finally {
+        setLoading(false);
       }
     };
-    loadCustomQuizzes();
+    loadData();
   }, []);
+
+  // Folder helper calculations
+  const getDescendantFolderIds = (parentId: string): string[] => {
+    const children = folders.filter(f => f.parentId === parentId);
+    let result: string[] = [];
+    for (const child of children) {
+      result.push(child.id);
+      result = result.concat(getDescendantFolderIds(child.id));
+    }
+    return result;
+  };
+
+  const getQuizCountInFolder = (folderId: string): number => {
+    const allIds = new Set([folderId, ...getDescendantFolderIds(folderId)]);
+    return customQuizzes.filter(q => q.folderId && allIds.has(q.folderId)).length;
+  };
+
+  const getSubfolderCount = (folderId: string): number => {
+    return folders.filter(f => f.parentId === folderId).length;
+  };
+
+  const uncategorizedQuizzes = useMemo(() => {
+    const validIds = new Set(folders.map(f => f.id));
+    return customQuizzes
+      .filter(q => !q.folderId || !validIds.has(q.folderId))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }, [customQuizzes, folders]);
+
+  const breadcrumbTrail = useMemo(() => {
+    if (currentFolderId === '__other__') {
+      return [
+        { id: null, name: 'All Categories' },
+        { id: '__other__', name: 'Other Quizzes' },
+      ];
+    }
+    if (!currentFolderId) {
+      return [{ id: null, name: 'All Categories' }];
+    }
+    const trail: { id: string | null; name: string }[] = [];
+    let curr: QuizFolder | undefined = folders.find(f => f.id === currentFolderId);
+    while (curr) {
+      trail.unshift({ id: curr.id, name: curr.name });
+      curr = curr.parentId ? folders.find(f => f.id === curr!.parentId) : undefined;
+    }
+    trail.unshift({ id: null, name: 'All Categories' });
+    return trail;
+  }, [currentFolderId, folders]);
+
+  const parentFolderId = useMemo(() => {
+    if (currentFolderId === '__other__') return null;
+    if (!currentFolderId) return null;
+    const current = folders.find(f => f.id === currentFolderId);
+    return current?.parentId || null;
+  }, [currentFolderId, folders]);
+
+  const displayedFolders = useMemo(() => {
+    if (quizSearch.trim() || currentFolderId === '__other__') return [];
+    return folders
+      .filter(f => f.parentId === currentFolderId)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }, [folders, currentFolderId, quizSearch]);
+
+  const displayedQuizzes = useMemo(() => {
+    if (quizSearch.trim()) return [];
+    if (currentFolderId === '__other__') return uncategorizedQuizzes;
+    if (!currentFolderId) return [];
+    return customQuizzes
+      .filter(q => q.folderId === currentFolderId)
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }, [customQuizzes, currentFolderId, uncategorizedQuizzes, quizSearch]);
+
+  const searchResults = useMemo(() => {
+    const q = quizSearch.toLowerCase().trim();
+    if (!q) return [];
+    return customQuizzes
+      .filter(quiz =>
+        quiz.title.toLowerCase().includes(q) ||
+        quiz.category.toLowerCase().includes(q) ||
+        (quiz.folderPath && quiz.folderPath.toLowerCase().includes(q))
+      )
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  }, [customQuizzes, quizSearch]);
 
   const getAvailabilityStatus = (quiz: any) => {
     if (!quiz.hasTimeRestriction) {
@@ -118,8 +210,20 @@ export default function QuizSetupScreen() {
   };
 
   const checkBanAndStart = async (quizConfig: any) => {
+    if (!currentUser) {
+      setModalState({
+        isOpen: true,
+        title: 'Login Required',
+        message: 'You need to be logged in to attempt this quiz and track your performance.',
+        type: 'confirm',
+        confirmText: 'Log In',
+        cancelText: 'Cancel',
+        confirmStyle: 'primary',
+        onConfirm: () => router.push('/login'),
+      });
+      return;
+    }
     try {
-      if (!currentUser) { router.push('/login'); return; }
       const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
       if (!userSnap.exists() || userSnap.data()?.isBanned === true) {
         await signOut(auth);
@@ -173,8 +277,8 @@ export default function QuizSetupScreen() {
           </View>
         </LinearGradient>
 
-        {/* Custom Quizzes Section */}
-        {customQuizzes.length > 0 && (
+        {/* Custom Section with Folder Hierarchy & Search */}
+        {(customQuizzes.length > 0 || folders.length > 0) && (
           <View style={styles.customSection}>
             <LinearGradient
               colors={['#F59E0B', '#EC4899', '#4F46E5']}
@@ -182,62 +286,288 @@ export default function QuizSetupScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.customSectionTitleBar}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Star size={20} color="#fff" fill="#fff" />
-                <Text style={styles.customSectionTitle}>Quizzes by QuizHub Team</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Star size={20} color="#fff" fill="#fff" />
+                  <Text style={styles.customSectionTitle}>Quizzes by QuizHub Team</Text>
+                </View>
               </View>
             </LinearGradient>
-            
-            <View style={styles.customQuizzesGrid}>
-              {customQuizzes.map((quiz) => {
-                const status = getAvailabilityStatus(quiz);
-                const isEasy = quiz.difficulty === 'easy';
-                const isHard = quiz.difficulty === 'hard';
-                const difficultyColor = isEasy ? '#10B981' : isHard ? '#EF4444' : '#F59E0B';
-                const difficultyBg = isEasy ? 'rgba(16,185,129,0.1)' : isHard ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)';
 
-                return (
-                  <TouchableOpacity
-                    key={quiz.quizId}
-                    onPress={() => setInfoModalQuiz(quiz)}
-                    style={[styles.customQuizCard, isDark ? styles.customQuizCardDark : styles.customQuizCardLight]}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.customCardHeader}>
-                      <View style={{ flexDirection: 'row', gap: 6 }}>
-                        <Text style={[styles.customBadge, { backgroundColor: difficultyBg, color: difficultyColor }]}>
-                          {quiz.difficulty.toUpperCase()}
+            {/* Search Input Bar */}
+            <View style={[styles.searchBarContainer, isDark ? styles.bgDark : styles.bgLight]}>
+              <View style={[styles.searchBar, isDark ? styles.searchBarDark : styles.searchBarLight]}>
+                <Search size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <TextInput
+                  placeholder="Search quizzes, tests..."
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  value={quizSearch}
+                  onChangeText={setQuizSearch}
+                  style={[styles.searchInput, isDark ? styles.textWhite : styles.textBlack]}
+                />
+                {quizSearch ? (
+                  <TouchableOpacity onPress={() => setQuizSearch('')}>
+                    <X size={16} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Search Mode or Folder Mode */}
+            {quizSearch.trim() ? (
+              <View style={styles.customQuizzesGrid}>
+                <Text style={[styles.sectionSubheader, isDark ? styles.textMuted : styles.textGray]}>
+                  Search Results ({searchResults.length})
+                </Text>
+                {searchResults.length === 0 ? (
+                  <View style={[styles.emptyState, isDark ? styles.emptyStateDark : styles.emptyStateLight]}>
+                    <Text style={[styles.emptyStateText, isDark ? styles.textWhite : styles.textBlack]}>
+                      No quizzes found
+                    </Text>
+                    <Text style={[styles.emptyStateSubtext, isDark ? styles.textMuted : styles.textGray]}>
+                      Try another keyword
+                    </Text>
+                  </View>
+                ) : (
+                  searchResults.map((quiz) => {
+                    const status = getAvailabilityStatus(quiz);
+                    const isEasy = quiz.difficulty === 'easy';
+                    const isHard = quiz.difficulty === 'hard';
+                    const difficultyColor = isEasy ? '#10B981' : isHard ? '#EF4444' : '#F59E0B';
+                    const difficultyBg = isEasy ? 'rgba(16,185,129,0.1)' : isHard ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)';
+
+                    return (
+                      <TouchableOpacity
+                        key={quiz.quizId}
+                        onPress={() => setInfoModalQuiz(quiz)}
+                        style={[styles.customQuizCard, isDark ? styles.customQuizCardDark : styles.customQuizCardLight]}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.customCardHeader}>
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <Text style={[styles.customBadge, { backgroundColor: difficultyBg, color: difficultyColor }]}>
+                              {quiz.difficulty.toUpperCase()}
+                            </Text>
+                            <Text style={[styles.customBadge, { backgroundColor: status.bg, color: status.color }]}>
+                              {status.text}
+                            </Text>
+                          </View>
+                          {status.locked ? (
+                            <Lock size={16} color="#9CA3AF" />
+                          ) : (
+                            <ChevronRight size={18} color={isDark ? '#9CA3AF' : '#4B5563'} />
+                          )}
+                        </View>
+                        
+                        <Text style={[styles.customQuizTitle, isDark ? styles.textWhite : styles.textBlack]}>
+                          {quiz.title}
                         </Text>
-                        <Text style={[styles.customBadge, { backgroundColor: status.bg, color: status.color }]}>
-                          {status.text}
+                        <Text style={styles.folderPathBadge}>
+                          📂 {quiz.folderPath || 'Other Quizzes'}
                         </Text>
-                      </View>
-                      {status.locked ? (
-                        <Lock size={16} color="#9CA3AF" />
-                      ) : (
-                        <ChevronRight size={18} color={isDark ? '#9CA3AF' : '#4B5563'} />
+                        
+                        <View style={styles.customQuizStats}>
+                          <Text style={[styles.customStatText, isDark ? styles.textMuted : styles.textGray]}>
+                            📝 {quiz.totalQuestions} Questions
+                          </Text>
+                          <Text style={[styles.customStatText, isDark ? styles.textMuted : styles.textGray]}>
+                            ⏱️ {quiz.timeLimitMinutes || 10} Mins
+                          </Text>
+                          {quiz.negativeMarking && (
+                            <Text style={[styles.customStatText, { color: '#EF4444' }]}>
+                              -0.25
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </View>
+            ) : (
+              /* Folder Navigation Mode */
+              <View>
+                {/* Horizontal Breadcrumb Trail */}
+                <View style={[styles.breadcrumbRow, isDark ? styles.bgDark : styles.bgLight]}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.breadcrumbContent}>
+                    {breadcrumbTrail.map((crumb, idx) => {
+                      const isLast = idx === breadcrumbTrail.length - 1;
+                      return (
+                        <View key={crumb.id ?? 'root'} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          {idx > 0 && <Text style={{ color: isDark ? '#6B7280' : '#9CA3AF', marginHorizontal: 4 }}>/</Text>}
+                          <TouchableOpacity
+                            onPress={() => setCurrentFolderId(crumb.id)}
+                            disabled={isLast}
+                            style={[
+                              styles.breadcrumbChip,
+                              isLast && styles.breadcrumbChipActive,
+                              isDark && (isLast ? styles.breadcrumbChipActiveDark : styles.breadcrumbChipDark)
+                            ]}
+                          >
+                            <Text style={[
+                              styles.breadcrumbText,
+                              isLast && styles.breadcrumbTextActive,
+                              isDark && (isLast ? styles.breadcrumbTextActiveDark : styles.textMuted)
+                            ]}>
+                              {idx === 0 ? '🏠 All' : crumb.name}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {currentFolderId && (
+                    <TouchableOpacity
+                      onPress={() => setCurrentFolderId(parentFolderId)}
+                      style={[styles.backButton, isDark ? styles.backButtonDark : styles.backButtonLight]}
+                    >
+                      <ArrowLeft size={14} color={isDark ? '#D1D5DB' : '#374151'} />
+                      <Text style={[styles.backButtonText, isDark ? styles.textWhite : styles.textBlack]}>Back</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.customQuizzesGrid}>
+                  {/* Subfolders list */}
+                  {(displayedFolders.length > 0 || (currentFolderId === null && uncategorizedQuizzes.length > 0)) && (
+                    <View>
+                      {currentFolderId && (
+                        <Text style={[styles.sectionSubheader, isDark ? styles.textMuted : styles.textGray]}>
+                          Sub-Folders
+                        </Text>
+                      )}
+                      {displayedFolders.map((folder) => {
+                        const count = getQuizCountInFolder(folder.id);
+                        const subs = getSubfolderCount(folder.id);
+                        return (
+                          <TouchableOpacity
+                            key={folder.id}
+                            onPress={() => setCurrentFolderId(folder.id)}
+                            style={[styles.folderCard, isDark ? styles.folderCardDark : styles.folderCardLight]}
+                            activeOpacity={0.7}
+                          >
+                            <View style={styles.folderIconBox}>
+                              <Text style={{ fontSize: 20 }}>📂</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.folderTitle, isDark ? styles.textWhite : styles.textBlack]}>
+                                {folder.name}
+                              </Text>
+                              <Text style={[styles.folderSubtitle, isDark ? styles.textMuted : styles.textGray]}>
+                                {count} {count === 1 ? 'quiz' : 'quizzes'}
+                                {subs > 0 ? ` • ${subs} sub-folder${subs === 1 ? '' : 's'}` : ''}
+                              </Text>
+                            </View>
+                            <ChevronRight size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                          </TouchableOpacity>
+                        );
+                      })}
+
+                      {/* Root level "Other Quizzes" fallback */}
+                      {currentFolderId === null && uncategorizedQuizzes.length > 0 && (
+                        <TouchableOpacity
+                          key="__other__"
+                          onPress={() => setCurrentFolderId('__other__')}
+                          style={[styles.folderCard, styles.folderCardDashed, isDark ? styles.folderCardDark : styles.folderCardLight]}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.folderIconBox, { backgroundColor: '#6B7280' }]}>
+                            <Text style={{ fontSize: 20 }}>📁</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.folderTitle, isDark ? styles.textWhite : styles.textBlack]}>
+                              Other Quizzes
+                            </Text>
+                            <Text style={[styles.folderSubtitle, isDark ? styles.textMuted : styles.textGray]}>
+                              {uncategorizedQuizzes.length} {uncategorizedQuizzes.length === 1 ? 'quiz' : 'quizzes'}
+                            </Text>
+                          </View>
+                          <ChevronRight size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                        </TouchableOpacity>
                       )}
                     </View>
-                    
-                    <Text style={[styles.customQuizTitle, isDark ? styles.textWhite : styles.textBlack]}>
-                      {quiz.title}
-                    </Text>
-                    <Text style={styles.customQuizCategory}>
-                      {quiz.category}
-                    </Text>
-                    
-                    <View style={styles.customQuizStats}>
-                      <Text style={[styles.customStatText, isDark ? styles.textMuted : styles.textGray]}>
-                        📝 {quiz.totalQuestions} Questions
+                  )}
+
+                  {/* Direct quizzes list */}
+                  {displayedQuizzes.length > 0 && (
+                    <View style={{ marginTop: displayedFolders.length > 0 ? 8 : 0 }}>
+                      {displayedFolders.length > 0 && (
+                        <Text style={[styles.sectionSubheader, isDark ? styles.textMuted : styles.textGray]}>
+                          Quizzes in this Folder
+                        </Text>
+                      )}
+                      {displayedQuizzes.map((quiz) => {
+                        const status = getAvailabilityStatus(quiz);
+                        const isEasy = quiz.difficulty === 'easy';
+                        const isHard = quiz.difficulty === 'hard';
+                        const difficultyColor = isEasy ? '#10B981' : isHard ? '#EF4444' : '#F59E0B';
+                        const difficultyBg = isEasy ? 'rgba(16,185,129,0.1)' : isHard ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)';
+
+                        return (
+                          <TouchableOpacity
+                            key={quiz.quizId}
+                            onPress={() => setInfoModalQuiz(quiz)}
+                            style={[styles.customQuizCard, isDark ? styles.customQuizCardDark : styles.customQuizCardLight]}
+                            activeOpacity={0.8}
+                          >
+                            <View style={styles.customCardHeader}>
+                              <View style={{ flexDirection: 'row', gap: 6 }}>
+                                <Text style={[styles.customBadge, { backgroundColor: difficultyBg, color: difficultyColor }]}>
+                                  {quiz.difficulty.toUpperCase()}
+                                </Text>
+                                <Text style={[styles.customBadge, { backgroundColor: status.bg, color: status.color }]}>
+                                  {status.text}
+                                </Text>
+                              </View>
+                              {status.locked ? (
+                                <Lock size={16} color="#9CA3AF" />
+                              ) : (
+                                <ChevronRight size={18} color={isDark ? '#9CA3AF' : '#4B5563'} />
+                              )}
+                            </View>
+                            
+                            <Text style={[styles.customQuizTitle, isDark ? styles.textWhite : styles.textBlack]}>
+                              {quiz.title}
+                            </Text>
+                            <Text style={styles.customQuizCategory}>
+                              {quiz.category}
+                            </Text>
+                            
+                            <View style={styles.customQuizStats}>
+                              <Text style={[styles.customStatText, isDark ? styles.textMuted : styles.textGray]}>
+                                📝 {quiz.totalQuestions} Questions
+                              </Text>
+                              <Text style={[styles.customStatText, isDark ? styles.textMuted : styles.textGray]}>
+                                ⏱️ {quiz.timeLimitMinutes || 10} Minutes
+                              </Text>
+                              {quiz.negativeMarking && (
+                                <Text style={[styles.customStatText, { color: '#EF4444' }]}>
+                                  -0.25
+                                </Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Empty state */}
+                  {displayedFolders.length === 0 && displayedQuizzes.length === 0 && (
+                    <View style={[styles.emptyState, isDark ? styles.emptyStateDark : styles.emptyStateLight]}>
+                      <Text style={{ fontSize: 32, marginBottom: 8 }}>📂</Text>
+                      <Text style={[styles.emptyStateText, isDark ? styles.textWhite : styles.textBlack]}>
+                        No quizzes in this section yet
                       </Text>
-                      <Text style={[styles.customStatText, isDark ? styles.textMuted : styles.textGray]}>
-                        ⏱️ {quiz.timeLimitMinutes || 10} Minutes
+                      <Text style={[styles.emptyStateSubtext, isDark ? styles.textMuted : styles.textGray]}>
+                        Quizzes will appear here once uploaded
                       </Text>
                     </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         )}
 
@@ -394,7 +724,7 @@ export default function QuizSetupScreen() {
                           >
                             <Play size={20} color="#fff" fill="#fff" />
                             <Text style={styles.infoStartBtnText}>
-                              {status.locked ? 'LOCKED' : 'START QUIZ NOW'}
+                              {status.locked ? 'LOCKED' : !currentUser ? 'LOG IN TO ATTEMPT' : 'START QUIZ NOW'}
                             </Text>
                           </LinearGradient>
                         </TouchableOpacity>
@@ -604,4 +934,40 @@ const styles = StyleSheet.create({
   infoStartBtn: { width: '100%', borderRadius: 16, overflow: 'hidden' },
   infoStartBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
   infoStartBtnText: { color: '#fff', fontSize: 16, fontWeight: '900' },
+
+  // Folder Browser & Search Styles
+  searchBarContainer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 12, height: 42, borderWidth: 1, gap: 8 },
+  searchBarLight: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
+  searchBarDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
+  searchInput: { flex: 1, fontSize: 13, height: 42 },
+  folderPathBadge: { fontSize: 11, color: '#9333EA', fontWeight: '700', marginBottom: 8 },
+  breadcrumbRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', gap: 8 },
+  breadcrumbContent: { alignItems: 'center', gap: 4 },
+  breadcrumbChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.04)' },
+  breadcrumbChipDark: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  breadcrumbChipActive: { backgroundColor: '#EEF2FF' },
+  breadcrumbChipActiveDark: { backgroundColor: 'rgba(79,70,229,0.2)' },
+  breadcrumbText: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
+  breadcrumbTextActive: { color: '#4F46E5' },
+  breadcrumbTextActiveDark: { color: '#818CF8' },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  backButtonLight: { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
+  backButtonDark: { backgroundColor: '#374151', borderColor: '#4B5563' },
+  backButtonText: { fontSize: 11, fontWeight: '700' },
+  folderCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, borderWidth: 1, gap: 12, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
+  folderCardLight: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
+  folderCardDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
+  folderCardDashed: { borderStyle: 'dashed' },
+  folderIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(245,158,11,0.15)' },
+  folderTitle: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  folderSubtitle: { fontSize: 11 },
+  sectionSubheader: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 10, marginTop: 4, textTransform: 'uppercase' },
+  emptyState: { padding: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, marginVertical: 8 },
+  emptyStateLight: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' },
+  emptyStateDark: { backgroundColor: '#1F2937', borderColor: '#374151' },
+  emptyStateText: { fontSize: 14, fontWeight: '700' },
+  emptyStateSubtext: { fontSize: 12, marginTop: 4 },
+  bgLight: { backgroundColor: '#F9FAFB' },
+  bgDark: { backgroundColor: '#111827' },
 });
