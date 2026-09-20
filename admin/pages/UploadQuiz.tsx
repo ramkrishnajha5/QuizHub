@@ -11,8 +11,103 @@ import { createAdminQuiz, AdminQuizQuestion, getAllQuizFolders, createQuizFolder
 import { logAdminAction } from '../utils/adminLogger';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Plus, Save, Send, Upload, FileJson, Loader, CheckCircle, AlertTriangle, FolderOpen, FolderPlus } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Save, Send, Upload, FileJson, Loader, CheckCircle, AlertTriangle, FolderOpen, FolderPlus, HelpCircle, Copy, Check, Layers } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+
+const SAMPLE_SECTION_FLAT = `[
+  {
+    "section": "General Knowledge",
+    "question": "Who was the first President of India?",
+    "options": ["Dr. Rajendra Prasad", "Jawaharlal Nehru", "Dr. S. Radhakrishnan", "Mahatma Gandhi"],
+    "correct": 0,
+    "explanation": "Dr. Rajendra Prasad served as the first President of India."
+  },
+  {
+    "section": "Reasoning",
+    "question": "Find the odd one out from the options:",
+    "options": ["Apple", "Mango", "Carrot", "Banana"],
+    "correct": 2,
+    "explanation": "Carrot is a vegetable, others are fruits."
+  },
+  {
+    "section": "Maths",
+    "question": "If 2x + 6 = 20, what is the value of x?",
+    "options": ["5", "7", "8", "6"],
+    "correct": 1,
+    "explanation": "2x = 14 => x = 7."
+  },
+  {
+    "section": "English",
+    "question": "Select the synonym of 'Abundant':",
+    "options": ["Plentiful", "Scarce", "Rare", "Insufficient"],
+    "correct": 0,
+    "explanation": "Abundant means plentiful."
+  }
+]`;
+
+const SAMPLE_SECTION_GROUPED = `{
+  "sections": [
+    {
+      "name": "General Knowledge",
+      "questions": [
+        {
+          "question": "Who was the first President of India?",
+          "options": ["Dr. Rajendra Prasad", "Jawaharlal Nehru", "Dr. S. Radhakrishnan", "Mahatma Gandhi"],
+          "correct": 0,
+          "explanation": "Dr. Rajendra Prasad served as the first President."
+        }
+      ]
+    },
+    {
+      "name": "Reasoning",
+      "questions": [
+        {
+          "question": "Find the odd one out from the options:",
+          "options": ["Apple", "Mango", "Carrot", "Banana"],
+          "correct": 2,
+          "explanation": "Carrot is a vegetable, others are fruits."
+        }
+      ]
+    },
+    {
+      "name": "Maths",
+      "questions": [
+        {
+          "question": "If 2x + 6 = 20, what is the value of x?",
+          "options": ["5", "7", "8", "6"],
+          "correct": 1,
+          "explanation": "2x = 14 => x = 7."
+        }
+      ]
+    },
+    {
+      "name": "English",
+      "questions": [
+        {
+          "question": "Select the synonym of 'Abundant':",
+          "options": ["Plentiful", "Scarce", "Rare", "Insufficient"],
+          "correct": 0,
+          "explanation": "Abundant means plentiful."
+        }
+      ]
+    }
+  ]
+}`;
+
+const SAMPLE_NON_SECTION = `[
+  {
+    "question": "What is the capital of France?",
+    "options": ["Berlin", "Madrid", "Paris", "Rome"],
+    "correct": 2,
+    "explanation": "Paris is the capital of France."
+  },
+  {
+    "question": "Which planet is known as the Red Planet?",
+    "options": ["Earth", "Mars", "Jupiter", "Venus"],
+    "correct": 1,
+    "explanation": "Mars appears reddish due to iron oxide."
+  }
+]`;
 
 const QUIZ_CATEGORIES = [
   'General Knowledge', 'Science & Nature', 'Science: Computers',
@@ -29,13 +124,15 @@ interface QuestionFormData {
   options: string[];
   correctOption: number;
   explanation: string;
+  section?: string;
 }
 
-const blankQuestion = (): QuestionFormData => ({
+const blankQuestion = (section?: string): QuestionFormData => ({
   questionText: '',
   options: ['', '', '', ''],
   correctOption: 0,
   explanation: '',
+  section: section || '',
 });
 
 const UploadQuiz: React.FC = () => {
@@ -59,6 +156,9 @@ const UploadQuiz: React.FC = () => {
   // Step 2 — Questions
   const [questions, setQuestions] = useState<QuestionFormData[]>([blankQuestion()]);
   const [errors, setErrors] = useState<Record<number, Record<string, string>>>({});
+  const [activeSectionFilter, setActiveSectionFilter] = useState<string>('all');
+  const [showJsonGuide, setShowJsonGuide] = useState<boolean>(false);
+  const [copiedTemplate, setCopiedTemplate] = useState<string | null>(null);
 
   // Folder selection
   const [folders, setFolders] = useState<QuizFolder[]>([]);
@@ -90,6 +190,28 @@ const UploadQuiz: React.FC = () => {
     if (!parentFolder) return newFolderName.trim();
     return `${buildFolderPath(parentFolder.id, folders)} / ${newFolderName.trim()}`;
   }, [newFolderName, parentFolder, folders]);
+
+  const existingSections = useMemo(() => {
+    const list = questions.map(q => q.section?.trim()).filter(Boolean) as string[];
+    return Array.from(new Set(list));
+  }, [questions]);
+
+  const filteredQuestionsWithIndices = useMemo(() => {
+    return questions
+      .map((q, idx) => ({ q, idx }))
+      .filter(({ q }) => {
+        if (activeSectionFilter === 'all') return true;
+        return (q.section?.trim() || '') === activeSectionFilter;
+      });
+  }, [questions, activeSectionFilter]);
+
+  const handleCopyTemplate = (text: string, id: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedTemplate(id);
+    setTimeout(() => setCopiedTemplate(null), 2000);
+  };
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim() || !adminUser) return;
@@ -124,8 +246,9 @@ const UploadQuiz: React.FC = () => {
     setQuestions(questions.filter((_, i) => i !== index));
   };
 
-  const addQuestion = () => {
-    setQuestions([...questions, blankQuestion()]);
+  const addQuestion = (sec?: string) => {
+    const defaultSec = sec || (activeSectionFilter !== 'all' ? activeSectionFilter : '');
+    setQuestions([...questions, blankQuestion(defaultSec)]);
   };
 
   const validateStep1 = (): boolean => {
@@ -184,12 +307,17 @@ const UploadQuiz: React.FC = () => {
     setErrorMsg('');
 
     try {
+      const sectionsList = Array.from(
+        new Set(questions.map(q => q.section?.trim()).filter(Boolean))
+      ) as string[];
+
       const quizQuestions: AdminQuizQuestion[] = questions.map((q) => ({
         questionId: uuidv4(),
         questionText: q.questionText.trim(),
         options: q.options.map(o => o.trim()),
         correctOption: q.correctOption,
         explanation: q.explanation.trim() || undefined,
+        section: q.section?.trim() || undefined,
       }));
 
       const folderPath = selectedFolderId ? buildFolderPath(selectedFolderId, folders) : 'Other Quizzes';
@@ -201,13 +329,14 @@ const UploadQuiz: React.FC = () => {
         timeLimitMinutes: Number(timeLimitMinutes) || 10,
         negativeMarking: negativeMarking === true,
         hasTimeRestriction,
-        // Converting datetime-local strings to Date objects (which firebase automatically handles or converts to Timestamp if supported directly by setDoc when passed Date)
+        // Converting datetime-local strings to Date objects
         availableFrom: hasTimeRestriction && availableFrom ? new Date(availableFrom) : null,
         availableUntil: hasTimeRestriction && availableUntil ? new Date(availableUntil) : null,
         createdBy: adminUser?.uid || '',
         isPublished: publish,
         totalQuestions: questions.length,
         questions: quizQuestions,
+        sections: sectionsList,
         folderId: selectedFolderId || null,
         folderPath,
       });
@@ -216,7 +345,7 @@ const UploadQuiz: React.FC = () => {
         action: publish ? 'QUIZ_PUBLISHED' : 'QUIZ_CREATED',
         performedBy: adminUser?.uid || '',
         performedByEmail: adminUser?.email || '',
-        details: `Quiz "${title}" (${questions.length} questions) ${publish ? 'published' : 'saved as draft'}`,
+        details: `Quiz "${title}" (${questions.length} questions${sectionsList.length > 0 ? `, ${sectionsList.length} sections` : ''}) ${publish ? 'published' : 'saved as draft'}`,
       });
 
       setSuccess(true);
@@ -236,20 +365,57 @@ const UploadQuiz: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const parsed = JSON.parse(event.target?.result as string);
-        if (!Array.isArray(parsed)) throw new Error('JSON must be an array');
+        const raw = JSON.parse(event.target?.result as string);
+        let imported: QuestionFormData[] = [];
 
-        const imported: QuestionFormData[] = parsed.map((item: any) => ({
-          questionText: item.question || item.questionText || '',
-          options: item.options || ['', '', '', ''],
-          correctOption: typeof item.correct === 'number' ? item.correct : (item.correctOption || 0),
-          explanation: item.explanation || '',
-        }));
+        // Check Format A: Grouped { sections: [ { name: "...", questions: [...] } ] }
+        if (raw && typeof raw === 'object' && Array.isArray(raw.sections)) {
+          for (const sec of raw.sections) {
+            const secName = (sec.name || sec.title || sec.section || '').trim();
+            const qList = Array.isArray(sec.questions) ? sec.questions : [];
+            for (const item of qList) {
+              imported.push({
+                questionText: item.question || item.questionText || '',
+                options: item.options || ['', '', '', ''],
+                correctOption: typeof item.correct === 'number' ? item.correct : (item.correctOption || 0),
+                explanation: item.explanation || '',
+                section: (item.section || item.sectionName || secName || '').trim(),
+              });
+            }
+          }
+        }
+        // Check Format B: Object with questions array { questions: [...] }
+        else if (raw && typeof raw === 'object' && Array.isArray(raw.questions)) {
+          imported = raw.questions.map((item: any) => ({
+            questionText: item.question || item.questionText || '',
+            options: item.options || ['', '', '', ''],
+            correctOption: typeof item.correct === 'number' ? item.correct : (item.correctOption || 0),
+            explanation: item.explanation || '',
+            section: (item.section || item.sectionName || item.sectionTitle || '').trim(),
+          }));
+        }
+        // Check Format C: Flat array [ { question: "...", section?: "..." } ]
+        else if (Array.isArray(raw)) {
+          imported = raw.map((item: any) => ({
+            questionText: item.question || item.questionText || '',
+            options: item.options || ['', '', '', ''],
+            correctOption: typeof item.correct === 'number' ? item.correct : (item.correctOption || 0),
+            explanation: item.explanation || '',
+            section: (item.section || item.sectionName || item.sectionTitle || '').trim(),
+          }));
+        } else {
+          throw new Error('Unrecognized JSON structure. Please use one of the supported formats.');
+        }
+
+        if (imported.length === 0) {
+          throw new Error('No valid questions found in JSON file.');
+        }
 
         setQuestions(imported);
+        setActiveSectionFilter('all');
         setErrorMsg('');
-      } catch (err) {
-        setErrorMsg('Invalid JSON format. Please check the file structure.');
+      } catch (err: any) {
+        setErrorMsg(err.message || 'Invalid JSON format. Please check the file structure.');
       }
     };
     reader.readAsText(file);
@@ -631,33 +797,83 @@ const UploadQuiz: React.FC = () => {
           >
             {/* Top Actions */}
             <div className="flex flex-wrap items-center gap-3 mb-6">
-              <button onClick={() => setStep(1)} className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-300">
+              <button onClick={() => setStep(1)} className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition">
                 <ChevronLeft size={16} /> Back
               </button>
               <div className="hidden sm:block flex-1" />
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-4 py-2 rounded-xl">
                 <span className="font-bold text-gray-900 dark:text-white">{questions.length}</span> questions
+                {existingSections.length > 0 && (
+                  <span className="ml-1 text-xs text-purple-600 dark:text-purple-400 font-bold">
+                    • {existingSections.length} sections
+                  </span>
+                )}
               </div>
+              <button
+                type="button"
+                onClick={() => setShowJsonGuide(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-xl font-bold text-sm border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition"
+              >
+                <HelpCircle size={16} /> JSON Format Guide
+              </button>
               <input ref={fileInputRef} type="file" accept=".json" onChange={handleJsonImport} className="hidden" />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-xl font-bold text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-xl font-bold text-sm hover:bg-blue-200 dark:hover:bg-blue-800/40 transition"
               >
                 <FileJson size={16} /> Import JSON
               </button>
             </div>
 
+            {/* Section Filter Pills (if quiz has sections) */}
+            {existingSections.length > 0 && (
+              <div className="mb-6 p-3 bg-gray-100/80 dark:bg-gray-800/80 rounded-2xl border border-gray-200 dark:border-gray-700 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 px-2 flex items-center gap-1 flex-shrink-0">
+                  <Layers size={14} /> Filter by Section:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveSectionFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                    activeSectionFilter === 'all'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  All Questions ({questions.length})
+                </button>
+                {existingSections.map((sec) => {
+                  const count = questions.filter(q => (q.section?.trim() || '') === sec).length;
+                  return (
+                    <button
+                      key={sec}
+                      type="button"
+                      onClick={() => setActiveSectionFilter(sec)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                        activeSectionFilter === sec
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {sec} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Question Cards */}
             <div className="space-y-6 mb-8">
               <AnimatePresence>
-                {questions.map((q, i) => (
+                {filteredQuestionsWithIndices.map(({ q, idx }) => (
                   <QuestionCard
-                    key={i}
-                    index={i}
+                    key={idx}
+                    index={idx}
                     data={q}
                     onChange={handleQuestionChange}
                     onDelete={handleDeleteQuestion}
-                    errors={errors[i]}
+                    errors={errors[idx]}
+                    availableSections={existingSections}
                   />
                 ))}
               </AnimatePresence>
@@ -665,10 +881,11 @@ const UploadQuiz: React.FC = () => {
 
             {/* Add Question */}
             <button
-              onClick={addQuestion}
+              onClick={() => addQuestion()}
               className="w-full py-4 border-2 border-dashed border-purple-300 dark:border-purple-700 rounded-2xl text-purple-600 dark:text-purple-400 font-bold flex items-center justify-center gap-2 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition mb-8"
             >
-              <Plus size={20} /> Add Another Question
+              <Plus size={20} />
+              {activeSectionFilter !== 'all' ? `Add Question to "${activeSectionFilter}"` : 'Add Another Question'}
             </button>
 
             {/* Save/Publish Buttons */}
@@ -691,6 +908,117 @@ const UploadQuiz: React.FC = () => {
               </button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* JSON Format Guide Modal */}
+      <AnimatePresence>
+        {showJsonGuide && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-800 rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-2xl border border-gray-100 dark:border-gray-700 max-h-[90vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-700">
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                    <FileJson className="text-purple-600" /> JSON Import Formats
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Upload Section-Wise or Regular quizzes using either of the formats below.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowJsonGuide(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto py-4 space-y-6">
+                {/* Format 1: Section Flat List */}
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
+                        Recommended
+                      </span>
+                      <strong className="text-sm text-gray-900 dark:text-white">Format 1: Section-Wise (with "section" key)</strong>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyTemplate(SAMPLE_SECTION_FLAT, 'sec_flat')}
+                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg shadow hover:bg-purple-700 transition"
+                    >
+                      {copiedTemplate === 'sec_flat' ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedTemplate === 'sec_flat' ? 'Copied!' : 'Copy Template'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Add a <code className="text-purple-600 dark:text-purple-400 font-bold">"section"</code> property to each question. E.g. General Knowledge, Reasoning, Maths, English.
+                  </p>
+                  <pre className="bg-gray-900 text-gray-100 text-xs p-3 rounded-xl overflow-x-auto font-mono">
+                    {SAMPLE_SECTION_FLAT}
+                  </pre>
+                </div>
+
+                {/* Format 2: Grouped sections */}
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <strong className="text-sm text-gray-900 dark:text-white">Format 2: Section-Wise (Grouped by Sections)</strong>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyTemplate(SAMPLE_SECTION_GROUPED, 'sec_grouped')}
+                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg shadow hover:bg-purple-700 transition"
+                    >
+                      {copiedTemplate === 'sec_grouped' ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedTemplate === 'sec_grouped' ? 'Copied!' : 'Copy Template'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    A top-level object with a <code className="text-purple-600 dark:text-purple-400 font-bold">"sections"</code> array containing section objects.
+                  </p>
+                  <pre className="bg-gray-900 text-gray-100 text-xs p-3 rounded-xl overflow-x-auto font-mono">
+                    {SAMPLE_SECTION_GROUPED}
+                  </pre>
+                </div>
+
+                {/* Format 3: Non-section */}
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <strong className="text-sm text-gray-900 dark:text-white">Format 3: Non-Section Quiz (Standard Single List)</strong>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyTemplate(SAMPLE_NON_SECTION, 'non_sec')}
+                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg shadow hover:bg-purple-700 transition"
+                    >
+                      {copiedTemplate === 'non_sec' ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedTemplate === 'non_sec' ? 'Copied!' : 'Copy Template'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Regular quiz with no sections. Questions run continuously.
+                  </p>
+                  <pre className="bg-gray-900 text-gray-100 text-xs p-3 rounded-xl overflow-x-auto font-mono">
+                    {SAMPLE_NON_SECTION}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowJsonGuide(false)}
+                  className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-bold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </AdminLayout>

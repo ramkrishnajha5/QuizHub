@@ -12,6 +12,8 @@ export interface Question {
   incorrect_answers: string[];
   // Augmented properties
   all_answers?: string[];
+  explanation?: string;
+  section?: string;
 }
 
 export interface QuizQuestion {
@@ -19,6 +21,7 @@ export interface QuizQuestion {
   question: string;
   options: string[];
   correctAnswer: string;
+  section?: string;
 }
 
 export interface UserAnswer {
@@ -86,6 +89,7 @@ export interface AdminQuizQuestion {
   options: string[];
   correctOption: number;
   explanation?: string;
+  section?: string;
 }
 
 export interface AdminQuiz {
@@ -104,6 +108,7 @@ export interface AdminQuiz {
   availableFrom?: any;
   availableUntil?: any;
   questions?: AdminQuizQuestion[];
+  sections?: string[];
   folderId?: string | null;
   folderPath?: string;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchQuestions } from '../utils/api';
 import { saveQuizState, getQuizState, clearQuizState } from '../utils/idb';
@@ -7,7 +7,7 @@ import { TIMERS } from '../constants';
 import { auth, db } from '../utils/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, ChevronRight, Flag, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, Clock, CheckCircle, AlertTriangle, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Alert from '../components/Alert';
 import { saveQuizResult } from '../utils/saveQuizResult';
@@ -43,8 +43,35 @@ const QuizRunner: React.FC = () => {
   const [showTimeWarning, setShowTimeWarning] = useState(false);
   const [submitCooldown, setSubmitCooldown] = useState(0);
   const [globalEndTime, setGlobalEndTime] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<string>('');
   const { modalState, showConfirm, closeModal } = useCustomModal();
   const warningShownRef = useRef(false);
+
+  // Derive unique sections from questions
+  const sections = useMemo(() => {
+    const list = questions.map(q => q.section?.trim()).filter(Boolean) as string[];
+    return Array.from(new Set(list));
+  }, [questions]);
+
+  // Keep activeSection synchronized with current question
+  useEffect(() => {
+    if (sections.length > 0) {
+      const qSec = questions[currentQuestionIndex]?.section?.trim();
+      if (qSec && qSec !== activeSection) {
+        setActiveSection(qSec);
+      } else if (!activeSection && sections[0]) {
+        setActiveSection(sections[0]);
+      }
+    }
+  }, [currentQuestionIndex, questions, sections, activeSection]);
+
+  const handleSwitchSection = (sec: string) => {
+    setActiveSection(sec);
+    const firstIdx = questions.findIndex(q => (q.section?.trim() || '') === sec);
+    if (firstIdx !== -1) {
+      setCurrentQuestionIndex(firstIdx);
+    }
+  };
 
   // Refs for autosave logic
   const stateRef = useRef({ questions, currentQuestionIndex, userAnswers, timeLeft });
@@ -97,6 +124,8 @@ const QuizRunner: React.FC = () => {
             category: state.category,
             difficulty: state.difficulty,
             type: 'multiple',
+            explanation: q.explanation,
+            section: q.section?.trim() || undefined,
           }));
 
           setCategoryId(0);
@@ -410,7 +439,8 @@ const QuizRunner: React.FC = () => {
       questionId: `q_${i}`,
       question: q.question,
       options: q.all_answers || [],
-      correctAnswer: q.correct_answer
+      correctAnswer: q.correct_answer,
+      section: q.section,
     }));
 
     const quizUserAnswers: QuizUserAnswer[] = userAnswers.map((ua, i) => ({
@@ -466,6 +496,34 @@ const QuizRunner: React.FC = () => {
     navigate('/results', { state: { result: attemptData } });
   };
 
+  const handleSubmitQuiz = () => {
+    if (submitCooldown > 0 || isSubmitting) return;
+    showConfirm({
+      title: 'Submit Quiz?',
+      message: 'Are you sure you want to submit? You cannot change answers after submission.',
+      onConfirm: () => {
+        setSubmitCooldown(8);
+        const cd = setInterval(() => {
+          setSubmitCooldown(p => {
+            if (p <= 1) {
+              clearInterval(cd);
+              return 0;
+            }
+            return p - 1;
+          });
+        }, 1000);
+        finishQuiz();
+      },
+      confirmText: 'Submit',
+      cancelText: 'Cancel',
+      confirmStyle: 'primary',
+    });
+  };
+
+  const answeredCount = useMemo(() => {
+    return userAnswers.filter(ua => ua && ua.selectedAnswer !== null && ua.selectedAnswer !== undefined).length;
+  }, [userAnswers]);
+
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -491,53 +549,95 @@ const QuizRunner: React.FC = () => {
       )}
 
       {/* Top Bar */}
-      <div className="bg-white dark:bg-darkcard shadow-sm px-4 py-3 flex justify-between items-center sticky top-16 z-40 border-b border-gray-100 dark:border-gray-700">
-        <div className="flex items-center space-x-4">
-          <span className="font-bold text-gray-500 dark:text-gray-400 text-sm">Q {currentQuestionIndex + 1}/{questions.length}</span>
-          <div className="hidden md:flex space-x-1">
-            {questions.map((_, idx) => (
-              <div
-                key={idx}
-                className={`w-2 h-2 rounded-full 
-                  ${idx === currentQuestionIndex ? 'bg-primary scale-125' :
-                    userAnswers[idx].isMarkedForReview ? 'bg-yellow-400' :
-                      userAnswers[idx].selectedAnswer ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-600'}`}
-              />
-            ))}
+      <div className="bg-white dark:bg-darkcard shadow-sm px-4 md:px-6 py-3 flex justify-between items-center sticky top-16 z-40 border-b border-gray-100 dark:border-gray-700 w-full">
+        {/* Left: Question counter and status */}
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          <span className="font-bold text-gray-700 dark:text-gray-200 text-sm md:text-base">
+            Q <span className="text-primary">{currentQuestionIndex + 1}</span>/{questions.length}
+          </span>
+          <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-gray-200 dark:border-gray-700 text-xs">
+            <span className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full font-medium">
+              {answeredCount} Ans
+            </span>
+            <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full font-medium">
+              {questions.length - answeredCount} Left
+            </span>
           </div>
         </div>
-        <div className={`flex items-center font-mono font-bold text-xl ${timerColor}`}>
-          <Clock size={20} className="mr-2" />
-          {formatTime(timeLeft)}
+
+        {/* Center: Countdown Timer */}
+        <div className={`flex items-center font-mono font-bold text-base md:text-xl px-3 py-1 rounded-lg bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 flex-shrink-0 shadow-inner ${timerColor}`}>
+          <Clock size={18} className="mr-2 flex-shrink-0" />
+          <span>{formatTime(timeLeft)}</span>
         </div>
-        <button
-          onClick={() => {
-            if (submitCooldown > 0) return;
-            showConfirm({
-              title: 'Submit Quiz?',
-              message: 'Are you sure you want to submit? You cannot change answers after submission.',
-              onConfirm: () => {
-                setSubmitCooldown(6);
-                const cd = setInterval(() => {
-                  setSubmitCooldown(p => { if (p <= 1) { clearInterval(cd); return 0; } return p - 1; });
-                }, 1000);
-                finishQuiz();
-              },
-              confirmText: 'Submit',
-              cancelText: 'Cancel',
-              confirmStyle: 'primary',
-            });
-          }}
-          disabled={submitCooldown > 0}
-          className={`px-4 py-2 text-white text-sm rounded-lg transition shadow-sm ${submitCooldown > 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-        >
-          {submitCooldown > 0 ? `Wait ${submitCooldown}s` : 'Submit'}
-        </button>
+
+        {/* Right: Submit Button */}
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <button
+            onClick={handleSubmitQuiz}
+            disabled={submitCooldown > 0 || isSubmitting}
+            className={`px-4 py-2 text-white text-xs md:text-sm font-semibold rounded-lg transition-all shadow-sm flex items-center gap-1.5 ${
+              submitCooldown > 0 || isSubmitting
+                ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-90'
+                : 'bg-green-600 hover:bg-green-700 active:scale-95 shadow-green-600/20'
+            }`}
+          >
+            {submitCooldown > 0 ? (
+              <>
+                <Clock size={14} className="animate-spin" />
+                <span>Wait {submitCooldown}s</span>
+              </>
+            ) : isSubmitting ? (
+              'Submitting...'
+            ) : (
+              'Submit Quiz'
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Section Selector Bar (Visible when quiz has sections) */}
+      {sections.length > 0 && (
+        <div className="bg-white/95 dark:bg-darkcard/95 backdrop-blur-md px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 overflow-x-auto no-scrollbar z-30 sticky top-28 shadow-sm">
+          <span className="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1.5 flex-shrink-0 uppercase tracking-wider pr-1">
+            <Layers size={14} className="text-primary" /> Sections:
+          </span>
+          {sections.map((sec) => {
+            const secIndices = questions.map((q, i) => ({ q, i })).filter(({ q }) => (q.section?.trim() || '') === sec);
+            const answeredCount = secIndices.filter(({ i }) => userAnswers[i]?.selectedAnswer !== null && userAnswers[i]?.selectedAnswer !== undefined).length;
+            const isCurrentSec = (currentQ?.section?.trim() || '') === sec || activeSection === sec;
+
+            return (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => handleSwitchSection(sec)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex-shrink-0 ${
+                  isCurrentSec
+                    ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
+                    : 'bg-gray-100 dark:bg-gray-700/70 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                <span>{sec}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                  isCurrentSec
+                    ? 'bg-white/20 text-white'
+                    : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
+                }`}>
+                  {answeredCount}/{secIndices.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Mobile Question Palette (Horizontal Scroll) */}
       <div className="md:hidden bg-white dark:bg-darkcard border-b border-gray-100 dark:border-gray-700 p-2 flex overflow-x-auto gap-2 no-scrollbar">
-        {questions.map((_, i) => (
+        {(sections.length > 0
+          ? questions.map((q, i) => ({ q, i })).filter(({ q }) => (q.section?.trim() || '') === (activeSection || currentQ?.section))
+          : questions.map((q, i) => ({ q, i }))
+        ).map(({ i }) => (
           <button
             key={i}
             onClick={() => setCurrentQuestionIndex(i)}
@@ -566,9 +666,16 @@ const QuizRunner: React.FC = () => {
             className="bg-white dark:bg-darkcard p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <span className="bg-blue-100 dark:bg-blue-900 text-primary dark:text-blue-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide w-fit">
-                {currentQ.category}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-blue-100 dark:bg-blue-900 text-primary dark:text-blue-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide w-fit">
+                  {currentQ.category}
+                </span>
+                {currentQ.section && (
+                  <span className="bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide flex items-center gap-1">
+                    🏷️ Section: {currentQ.section}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={toggleMarkReview}
                 className={`flex items-center text-sm transition-colors px-3 py-1.5 rounded-lg self-start sm:self-auto
@@ -629,29 +736,127 @@ const QuizRunner: React.FC = () => {
         </div>
 
         {/* Sidebar / Palette (Desktop) */}
-        <div className="hidden md:block w-72 flex-shrink-0 bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 h-fit sticky top-32">
-          <h3 className="font-bold text-gray-900 dark:text-white mb-4">Question Palette</h3>
-          <div className="grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
-            {questions.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentQuestionIndex(i)}
-                className={`
-                  h-10 w-full rounded-lg text-sm font-medium transition-colors flex-shrink-0
-                  ${i === currentQuestionIndex ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-darkcard' : ''}
-                  ${userAnswers[i].isMarkedForReview ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                    userAnswers[i].selectedAnswer ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
-                `}
-              >
-                {i + 1}
-              </button>
-            ))}
+        <div className="hidden md:block w-80 flex-shrink-0 bg-white dark:bg-darkcard rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 h-fit sticky top-36">
+          {/* Quick Timer & Submit bar for PC */}
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock size={18} className={timerColor} />
+              <div>
+                <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Time Left</div>
+                <div className={`font-mono font-bold text-base ${timerColor}`}>{formatTime(timeLeft)}</div>
+              </div>
+            </div>
+            <button
+              onClick={handleSubmitQuiz}
+              disabled={submitCooldown > 0 || isSubmitting}
+              className={`px-3 py-1.5 text-white text-xs font-semibold rounded-lg transition-all shadow-sm ${
+                submitCooldown > 0 || isSubmitting
+                  ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 active:scale-95'
+              }`}
+            >
+              {submitCooldown > 0 ? `Wait ${submitCooldown}s` : 'Submit'}
+            </button>
           </div>
+
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-900 dark:text-white">Question Palette</h3>
+            {sections.length > 0 && (
+              <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                {activeSection || currentQ.section}
+              </span>
+            )}
+          </div>
+
+          {/* Grouped sections or single palette */}
+          {sections.length > 0 ? (
+            <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
+              {sections.map((sec) => {
+                const secItems = questions
+                  .map((q, i) => ({ q, i }))
+                  .filter(({ q }) => (q.section?.trim() || '') === sec);
+                const isSecActive = (activeSection || currentQ?.section) === sec;
+
+                return (
+                  <div key={sec} className={`rounded-xl border p-2.5 transition-all ${
+                    isSecActive
+                      ? 'border-primary/40 bg-blue-50/20 dark:bg-blue-900/10'
+                      : 'border-gray-100 dark:border-gray-800'
+                  }`}>
+                    <div 
+                      onClick={() => handleSwitchSection(sec)}
+                      className="flex items-center justify-between text-xs font-bold text-gray-700 dark:text-gray-300 mb-2 cursor-pointer hover:text-primary"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${isSecActive ? 'bg-primary' : 'bg-gray-400'}`} />
+                        {sec}
+                      </span>
+                      <span className="text-[11px] text-gray-400 font-normal">
+                        {secItems.filter(({ i }) => userAnswers[i]?.selectedAnswer).length}/{secItems.length}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {secItems.map(({ i }) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setActiveSection(sec);
+                            setCurrentQuestionIndex(i);
+                          }}
+                          className={`
+                            h-9 w-full rounded-lg text-xs font-bold transition-all flex items-center justify-center
+                            ${i === currentQuestionIndex ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-darkcard shadow-sm' : ''}
+                            ${userAnswers[i]?.isMarkedForReview ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                              userAnswers[i]?.selectedAnswer ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                          `}
+                          title={`Q${i + 1} (${sec})`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-5 gap-2 max-h-96 overflow-y-auto">
+              {questions.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentQuestionIndex(i)}
+                  className={`
+                    h-10 w-full rounded-lg text-sm font-medium transition-colors flex-shrink-0
+                    ${i === currentQuestionIndex ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-darkcard' : ''}
+                    ${userAnswers[i]?.isMarkedForReview ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                      userAnswers[i]?.selectedAnswer ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                  `}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mt-6 space-y-2 text-xs text-gray-500 dark:text-gray-400">
             <div className="flex items-center"><div className="w-3 h-3 bg-green-100 dark:bg-green-900 rounded-sm mr-2"></div> Answered</div>
             <div className="flex items-center"><div className="w-3 h-3 bg-yellow-100 dark:bg-yellow-900 rounded-sm mr-2"></div> Marked</div>
             <div className="flex items-center"><div className="w-3 h-3 bg-gray-100 dark:bg-gray-700 rounded-sm mr-2"></div> Not Visited</div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button
+              onClick={handleSubmitQuiz}
+              disabled={submitCooldown > 0 || isSubmitting}
+              className={`w-full py-2.5 text-white text-sm font-semibold rounded-xl transition-all shadow flex items-center justify-center gap-2 ${
+                submitCooldown > 0 || isSubmitting
+                  ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 active:scale-98 shadow-green-600/20'
+              }`}
+            >
+              {submitCooldown > 0 ? `Wait ${submitCooldown}s before submit` : 'Submit Entire Quiz'}
+            </button>
           </div>
         </div>
       </main>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, BackHandler } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { fetchQuestions } from '../shared/api';
@@ -43,6 +43,33 @@ export default function QuizRunnerScreen() {
   const [submitCooldown, setSubmitCooldown] = useState<number>(0);
   const [quizEndTime, setQuizEndTime] = useState<number | null>(null);
   const [endTimeLeft, setEndTimeLeft] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<string>('');
+
+  // Derive unique sections from questions
+  const sections = useMemo(() => {
+    const list = questions.map(q => q.section?.trim()).filter(Boolean) as string[];
+    return Array.from(new Set(list));
+  }, [questions]);
+
+  // Keep activeSection synchronized with current question
+  useEffect(() => {
+    if (sections.length > 0) {
+      const qSec = questions[currentQuestionIndex]?.section?.trim();
+      if (qSec && qSec !== activeSection) {
+        setActiveSection(qSec);
+      } else if (!activeSection && sections[0]) {
+        setActiveSection(sections[0]);
+      }
+    }
+  }, [currentQuestionIndex, questions, sections, activeSection]);
+
+  const handleSwitchSection = (sec: string) => {
+    setActiveSection(sec);
+    const firstIdx = questions.findIndex(q => (q.section?.trim() || '') === sec);
+    if (firstIdx !== -1) {
+      setCurrentQuestionIndex(firstIdx);
+    }
+  };
 
   const warningShownRef = useRef(false);
   const stateRef = useRef({ questions, currentQuestionIndex, userAnswers, timeLeft });
@@ -106,6 +133,8 @@ export default function QuizRunnerScreen() {
             category: state.category || 'Custom Quiz',
             difficulty: state.difficulty || 'medium',
             type: 'multiple',
+            explanation: q.explanation,
+            section: q.section?.trim() || undefined,
           }));
 
           setCategoryId(0);
@@ -273,7 +302,13 @@ export default function QuizRunnerScreen() {
     const percent = (score / questions.length) * 100;
     const endedAt = Date.now();
 
-    const quizQuestions: QuizQuestion[] = questions.map((q, i) => ({ questionId: `q_${i}`, question: q.question, options: q.all_answers || [], correctAnswer: q.correct_answer }));
+    const quizQuestions: QuizQuestion[] = questions.map((q, i) => ({
+      questionId: `q_${i}`,
+      question: q.question,
+      options: q.all_answers || [],
+      correctAnswer: q.correct_answer,
+      section: q.section,
+    }));
     const quizUserAnswers = userAnswers.map((ua, i) => ({
       questionId: `q_${i}`,
       selectedOption: ua.selectedAnswer,
@@ -361,7 +396,7 @@ export default function QuizRunnerScreen() {
               cancelText: 'Cancel',
               confirmStyle: 'primary',
               onConfirm: () => {
-                setSubmitCooldown(5);
+                setSubmitCooldown(8);
                 const cd = setInterval(() => {
                   setSubmitCooldown(p => {
                     if (p <= 1) {
@@ -388,10 +423,58 @@ export default function QuizRunnerScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Section Switcher Bar (visible when quiz has sections) */}
+      {sections.length > 0 && (
+        <View style={[styles.sectionBar, isDark ? styles.sectionBarDark : styles.sectionBarLight]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sectionBarContent}>
+            {sections.map((sec) => {
+              const secIndices = questions.map((q, i) => ({ q, i })).filter(({ q }) => (q.section?.trim() || '') === sec);
+              const answeredCount = secIndices.filter(({ i }) => userAnswers[i]?.selectedAnswer).length;
+              const isCurrentSec = (currentQ?.section?.trim() || '') === sec || activeSection === sec;
+
+              return (
+                <TouchableOpacity
+                  key={sec}
+                  onPress={() => handleSwitchSection(sec)}
+                  style={[
+                    styles.sectionTab,
+                    isDark ? styles.sectionTabDark : styles.sectionTabLight,
+                    isCurrentSec && styles.sectionTabActive,
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.sectionTabText,
+                    isDark ? styles.textLight : styles.textDark,
+                    isCurrentSec && styles.sectionTabTextActive,
+                  ]}>
+                    {sec}
+                  </Text>
+                  <View style={[
+                    styles.sectionCountBadge,
+                    isCurrentSec ? styles.sectionCountBadgeActive : isDark ? styles.sectionCountBadgeDark : styles.sectionCountBadgeLight
+                  ]}>
+                    <Text style={[
+                      styles.sectionCountText,
+                      isCurrentSec ? styles.sectionCountTextActive : isDark ? styles.textMuted : styles.textGray
+                    ]}>
+                      {answeredCount}/{secIndices.length}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Question Shuffled Selector Palette */}
       <View style={[styles.paletteContainer, isDark ? styles.borderDark : styles.borderLight]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.palette, isDark ? styles.paletteDark : styles.paletteLight]} contentContainerStyle={styles.paletteContent}>
-          {questions.map((_, i) => (
+          {(sections.length > 0
+            ? questions.map((q, i) => ({ q, i })).filter(({ q }) => (q.section?.trim() || '') === (activeSection || currentQ?.section))
+            : questions.map((q, i) => ({ q, i }))
+          ).map(({ i }) => (
             <TouchableOpacity
               key={i}
               onPress={() => setCurrentQuestionIndex(i)}
@@ -420,8 +503,15 @@ export default function QuizRunnerScreen() {
       <ScrollView style={styles.questionArea} contentContainerStyle={styles.questionContent} showsVerticalScrollIndicator={false}>
         <View style={[styles.questionCard, isDark ? styles.questionCardDark : styles.questionCardLight]}>
           <View style={styles.questionHeader}>
-            <View style={[styles.categoryBadge, isDark ? styles.categoryBadgeDark : styles.categoryBadgeLight]}>
-              <Text style={styles.categoryText}>{currentQ.category}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+              <View style={[styles.categoryBadge, isDark ? styles.categoryBadgeDark : styles.categoryBadgeLight]}>
+                <Text style={styles.categoryText}>{currentQ.category}</Text>
+              </View>
+              {currentQ.section && (
+                <View style={[styles.sectionBadge, isDark ? styles.sectionBadgeDark : styles.sectionBadgeLight]}>
+                  <Text style={styles.sectionBadgeText}>{currentQ.section}</Text>
+                </View>
+              )}
             </View>
             <TouchableOpacity 
               onPress={toggleMarkReview} 
@@ -599,4 +689,25 @@ const styles = StyleSheet.create({
   timeWarning: { position: 'absolute', top: 100, left: 16, right: 16, backgroundColor: '#EF4444', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 8, zIndex: 100 },
   timeWarningTitle: { color: '#fff', fontWeight: '800', fontSize: 14 },
   timeWarningText: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
+
+  sectionBar: { borderBottomWidth: 1 },
+  sectionBarLight: { backgroundColor: '#FFFFFF', borderBottomColor: '#E5E7EB' },
+  sectionBarDark: { backgroundColor: '#1F2937', borderBottomColor: '#374151' },
+  sectionBarContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
+  sectionTab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1 },
+  sectionTabLight: { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
+  sectionTabDark: { backgroundColor: '#374151', borderColor: '#4B5563' },
+  sectionTabActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
+  sectionTabText: { fontSize: 12, fontWeight: '800' },
+  sectionTabTextActive: { color: '#FFFFFF' },
+  sectionCountBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  sectionCountBadgeLight: { backgroundColor: '#E5E7EB' },
+  sectionCountBadgeDark: { backgroundColor: '#1F2937' },
+  sectionCountBadgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  sectionCountText: { fontSize: 10, fontWeight: '800' },
+  sectionCountTextActive: { color: '#FFFFFF' },
+  sectionBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, backgroundColor: 'rgba(147, 51, 234, 0.12)' },
+  sectionBadgeLight: { backgroundColor: 'rgba(147, 51, 234, 0.1)' },
+  sectionBadgeDark: { backgroundColor: 'rgba(168, 85, 247, 0.2)' },
+  sectionBadgeText: { fontSize: 10, fontWeight: '800', color: '#9333EA', textTransform: 'uppercase', letterSpacing: 0.5 },
 });

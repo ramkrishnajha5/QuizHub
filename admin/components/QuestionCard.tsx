@@ -12,6 +12,7 @@ interface QuestionData {
   options: string[];
   correctOption: number;
   explanation: string;
+  section?: string;
 }
 
 interface QuestionCardProps {
@@ -20,9 +21,10 @@ interface QuestionCardProps {
   onChange: (index: number, data: QuestionData) => void;
   onDelete: (index: number) => void;
   errors?: Record<string, string>;
+  availableSections?: string[];
 }
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ index, data, onChange, onDelete, errors }) => {
+const QuestionCard: React.FC<QuestionCardProps> = ({ index, data, onChange, onDelete, errors, availableSections }) => {
   const handleFieldChange = (field: keyof QuestionData, value: any) => {
     onChange(index, { ...data, [field]: value });
   };
@@ -50,6 +52,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ index, data, onChange, onDe
             {index + 1}
           </span>
           <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Question {index + 1}</span>
+          {data.section && (
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
+              {data.section}
+            </span>
+          )}
         </div>
         <button
           onClick={() => onDelete(index)}
@@ -57,6 +64,41 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ index, data, onChange, onDe
         >
           <Trash2 size={18} />
         </button>
+      </div>
+
+      {/* Section (Optional) */}
+      <div className="mb-5 bg-purple-50/40 dark:bg-purple-900/10 p-3.5 rounded-xl border border-purple-100 dark:border-purple-900/30">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+            Section / Subject <span className="text-gray-400 font-normal">(optional — e.g. General Knowledge, Reasoning, Maths, English)</span>
+          </label>
+        </div>
+        <input
+          type="text"
+          value={data.section || ''}
+          onChange={(e) => handleFieldChange('section', e.target.value)}
+          placeholder="e.g. General Knowledge or Reasoning"
+          className="w-full p-2.5 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+        />
+        {availableSections && availableSections.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Quick tag:</span>
+            {availableSections.map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => handleFieldChange('section', sec)}
+                className={`text-xs px-2.5 py-0.5 rounded-md font-medium transition ${
+                  data.section === sec
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                }`}
+              >
+                {sec}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Question Text */}

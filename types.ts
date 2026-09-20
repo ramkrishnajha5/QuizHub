@@ -12,6 +12,8 @@ export interface Question {
   incorrect_answers: string[];
   // Augmented properties
   all_answers?: string[];
+  explanation?: string;
+  section?: string;
 }
 
 export interface QuizQuestion {
@@ -19,6 +21,7 @@ export interface QuizQuestion {
   question: string;
   options: string[];
   correctAnswer: string;
+  section?: string;
 }
 
 export interface UserAnswer {

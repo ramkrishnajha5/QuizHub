@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { QuizAttempt } from '../shared/types';
-import { CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Home, Trophy, Sparkles, Target } from 'lucide-react-native';
+import { CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Home, Trophy, Sparkles, Target, Layers } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
@@ -75,6 +75,37 @@ export default function ResultsScreen() {
   };
 
   const grade = getGrade(result.percent);
+
+  // Compute section-wise statistics
+  const sectionStats = React.useMemo(() => {
+    if (!result?.questions) return [];
+    const secMap: Record<string, { total: number; correct: number; wrong: number; skipped: number }> = {};
+
+    result.questions.forEach((q: any, idx: number) => {
+      const sec = (q.section || (result as any).sections?.[idx])?.trim();
+      if (!sec) return;
+      if (!secMap[sec]) {
+        secMap[sec] = { total: 0, correct: 0, wrong: 0, skipped: 0 };
+      }
+      secMap[sec].total++;
+      const ua = result.userAnswers?.[idx];
+      const selected = ua?.selectedOption !== undefined ? ua.selectedOption : (ua as any)?.selectedAnswer;
+      const isCorrect = ua?.isCorrect !== undefined ? ua.isCorrect : (selected === q.correctAnswer || selected === (q as any).correct_answer);
+      if (!selected) {
+        secMap[sec].skipped++;
+      } else if (isCorrect) {
+        secMap[sec].correct++;
+      } else {
+        secMap[sec].wrong++;
+      }
+    });
+
+    return Object.entries(secMap).map(([section, stats]) => ({
+      section,
+      ...stats,
+      percent: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
+    }));
+  }, [result]);
 
   return (
     <SafeAreaView style={[styles.safe, isDark ? styles.safeDark : styles.safeLight]}>
@@ -171,6 +202,56 @@ export default function ResultsScreen() {
           </View>
         )}
 
+        {/* Section-Wise Performance Breakdown */}
+        {sectionStats.length > 0 && (
+          <View style={[styles.statsGrid, isDark ? styles.cardDark : styles.cardLight, { marginTop: 16 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 }}>
+              <Layers size={20} color="#9333EA" />
+              <Text style={[styles.statsTitle, isDark ? styles.textWhite : styles.textBlack, { marginBottom: 0 }]}>
+                Section-Wise Performance
+              </Text>
+            </View>
+            <View style={{ gap: 12 }}>
+              {sectionStats.map((sec) => (
+                <View
+                  key={sec.section}
+                  style={[
+                    styles.sectionResultCard,
+                    isDark ? styles.sectionResultCardDark : styles.sectionResultCardLight,
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={[styles.sectionResultTitle, isDark ? styles.textWhite : styles.textBlack]}>
+                      🏷️ {sec.section}
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#9333EA' }}>
+                      {sec.correct} / {sec.total} ({sec.percent}%)
+                    </Text>
+                  </View>
+
+                  {/* Progress Bar */}
+                  <View style={[styles.progressBarBg, isDark ? styles.progressBarBgDark : styles.progressBarBgLight]}>
+                    <View style={[styles.progressBarFill, { width: `${sec.percent}%` }]} />
+                  </View>
+
+                  {/* Pills */}
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+                    <View style={[styles.resPill, { backgroundColor: '#D1FAE5' }]}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#065F46' }}>✅ {sec.correct} Correct</Text>
+                    </View>
+                    <View style={[styles.resPill, { backgroundColor: '#FEE2E2' }]}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#991B1B' }}>❌ {sec.wrong} Wrong</Text>
+                    </View>
+                    <View style={[styles.resPill, { backgroundColor: '#F3F4F6' }]}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#4B5563' }}>⏭️ {sec.skipped} Skipped</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Action Button Panel */}
         <View style={styles.actions}>
           <TouchableOpacity 
@@ -228,7 +309,7 @@ export default function ResultsScreen() {
             </View>
             
             {result.questions.map((q: any, i) => {
-              const ua = result.userAnswers[i];
+              const ua = result.userAnswers[i] || {};
               const userSelected = ua.selectedOption || ua.selectedAnswer;
               const timeSpent = ua.timeSpentSeconds || ua.timeSpent || 0;
               const options = q.options || q.all_answers || [];
@@ -242,7 +323,14 @@ export default function ResultsScreen() {
                   { borderLeftColor: isCorrect ? '#10B981' : userSelected ? '#EF4444' : '#9CA3AF' }
                 ]}>
                   <View style={styles.solutionTop}>
-                    <Text style={[styles.solutionNum, isDark ? styles.textMuted : styles.textGray]}>Question {i + 1}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.solutionNum, isDark ? styles.textMuted : styles.textGray]}>Question {i + 1}</Text>
+                      {q.section && (
+                        <View style={[styles.sectionBadge, isDark ? styles.sectionBadgeDark : styles.sectionBadgeLight]}>
+                          <Text style={styles.sectionBadgeText}>{q.section}</Text>
+                        </View>
+                      )}
+                    </View>
                     <View style={styles.solutionMeta}>
                       <Clock size={12} color="#9CA3AF" />
                       <Text style={styles.solutionTime}>{timeSpent}s spent</Text>
@@ -279,6 +367,13 @@ export default function ResultsScreen() {
                       );
                     })}
                   </View>
+
+                  {q.explanation ? (
+                    <View style={[styles.explanationBox, isDark ? styles.explanationBoxDark : styles.explanationBoxLight]}>
+                      <Text style={styles.explanationTitle}>💡 Explanation:</Text>
+                      <Text style={[styles.explanationText, isDark ? styles.textLight : styles.textBlack]}>{q.explanation}</Text>
+                    </View>
+                  ) : null}
                 </View>
               );
             })}
@@ -367,4 +462,23 @@ const styles = StyleSheet.create({
   optCorrectDark: { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' },
   optWrong: { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' },
   optWrongDark: { backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' },
+
+  sectionResultCard: { padding: 14, borderRadius: 16, borderWidth: 1 },
+  sectionResultCardLight: { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' },
+  sectionResultCardDark: { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.06)' },
+  sectionResultTitle: { fontSize: 14, fontWeight: '800' },
+  progressBarBg: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressBarBgLight: { backgroundColor: '#E5E7EB' },
+  progressBarBgDark: { backgroundColor: '#374151' },
+  progressBarFill: { height: 8, borderRadius: 4, backgroundColor: '#9333EA' },
+  resPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  sectionBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, backgroundColor: 'rgba(147, 51, 234, 0.12)' },
+  sectionBadgeLight: { backgroundColor: 'rgba(147, 51, 234, 0.1)' },
+  sectionBadgeDark: { backgroundColor: 'rgba(168, 85, 247, 0.2)' },
+  sectionBadgeText: { fontSize: 10, fontWeight: '800', color: '#9333EA', textTransform: 'uppercase' },
+  explanationBox: { marginTop: 12, padding: 12, borderRadius: 12, borderWidth: 1 },
+  explanationBoxLight: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
+  explanationBoxDark: { backgroundColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.25)' },
+  explanationTitle: { fontSize: 11, fontWeight: '800', color: '#3B82F6', marginBottom: 4 },
+  explanationText: { fontSize: 13, lineHeight: 18 },
 });

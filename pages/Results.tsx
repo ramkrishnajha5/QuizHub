@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { QuizAttempt } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Home, Trophy, Sparkles, Target } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Clock, RotateCcw, Home, Trophy, Sparkles, Target, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Results: React.FC = () => {
@@ -36,6 +36,37 @@ const Results: React.FC = () => {
   };
 
   const grade = getGrade(result.percent);
+
+  // Compute section-wise statistics if quiz has sections
+  const sectionStats = useMemo(() => {
+    if (!result?.questions) return [];
+    const secMap: Record<string, { total: number; correct: number; wrong: number; skipped: number }> = {};
+
+    result.questions.forEach((q: any, idx: number) => {
+      const sec = (q.section || (result as any).sections?.[idx])?.trim();
+      if (!sec) return;
+      if (!secMap[sec]) {
+        secMap[sec] = { total: 0, correct: 0, wrong: 0, skipped: 0 };
+      }
+      secMap[sec].total++;
+      const ua = result.userAnswers?.[idx];
+      const selected = ua?.selectedOption !== undefined ? ua.selectedOption : (ua as any)?.selectedAnswer;
+      const isCorrect = ua?.isCorrect !== undefined ? ua.isCorrect : (selected === q.correctAnswer || selected === (q as any).correct_answer);
+      if (!selected) {
+        secMap[sec].skipped++;
+      } else if (isCorrect) {
+        secMap[sec].correct++;
+      } else {
+        secMap[sec].wrong++;
+      }
+    });
+
+    return Object.entries(secMap).map(([section, stats]) => ({
+      section,
+      ...stats,
+      percent: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
+    }));
+  }, [result]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -135,6 +166,67 @@ const Results: React.FC = () => {
           </motion.div>
         </div>
 
+        {/* Section-Wise Performance Breakdown (when sections exist) */}
+        {sectionStats.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-xl mb-8"
+          >
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <Layers className="w-6 h-6 text-purple-600" /> Section-Wise Performance
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {sectionStats.map((sec) => (
+                <div
+                  key={sec.section}
+                  className="bg-gray-50/80 dark:bg-gray-700/40 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-base flex items-center gap-2">
+                        <span>🏷️</span> {sec.section}
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {sec.total} total questions
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xl font-black text-purple-600 dark:text-purple-400">
+                        {sec.correct} / {sec.total}
+                      </span>
+                      <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        {sec.percent}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-500"
+                      style={{ width: `${sec.percent}%` }}
+                    />
+                  </div>
+
+                  {/* Pills */}
+                  <div className="flex items-center gap-2 text-xs pt-1">
+                    <span className="px-2.5 py-1 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold">
+                      ✅ {sec.correct} Correct
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-semibold">
+                      ❌ {sec.wrong} Wrong
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 font-semibold">
+                      ⏭️ {sec.skipped} Skipped
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Actions */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-wrap justify-center gap-4 mb-8">
           <button onClick={() => setShowSolutions(!showSolutions)} className="px-8 py-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-2 border-purple-200 dark:border-purple-800 text-gray-900 dark:text-white font-bold rounded-xl shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition flex items-center gap-2">
@@ -164,7 +256,14 @@ const Results: React.FC = () => {
                 return (
                   <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className={`bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-8 rounded-3xl border-l-4 shadow-xl ${isCorrect ? 'border-green-500' : userSelected ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}>
                     <div className="flex justify-between items-start mb-4">
-                      <span className="text-lg font-bold text-gray-400">Question {i + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-gray-400">Question {i + 1}</span>
+                        {q.section && (
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
+                            {q.section}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-gray-500 flex items-center gap-1"><Clock size={14} /> {timeSpent}s</span>
                         {isCorrect && <CheckCircle className="w-6 h-6 text-green-500" />}
@@ -189,6 +288,12 @@ const Results: React.FC = () => {
                         );
                       })}
                     </div>
+                    {q.explanation && (
+                      <div className="mt-4 p-4 rounded-xl bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                        <p className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-1">💡 Explanation:</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{q.explanation}</p>
+                      </div>
+                    )}
                   </motion.div>
                 );
               })}
