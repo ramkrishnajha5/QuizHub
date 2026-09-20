@@ -279,12 +279,14 @@ const ManageQuizzes: React.FC = () => {
         totalQuestions: editData.questions.length,
         updatedAt: serverTimestamp(),
         questions: editData.questions.map((q: any, i: number) => ({
-          questionId: i + 1,
+          questionId: q.questionId || i + 1,
           questionText: q.questionText.trim(),
           options: q.options.map((o: string) => o.trim()),
           correctOption: Number(q.correctOption),
           explanation: q.explanation?.trim() || "",
-        }))
+          section: q.section?.trim() || undefined,
+        })),
+        sections: Array.from(new Set(editData.questions.map((q: any) => q.section?.trim()).filter(Boolean))) as string[],
       };
 
       await updateDoc(doc(db, "adminQuizzes", editData.id), updatedQuiz);

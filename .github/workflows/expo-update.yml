@@ -48,6 +48,7 @@ jobs:
             eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE" --non-interactive
           else
             eas update --branch preview --message "Auto-update from GitHub - $COMMIT_MESSAGE" --non-interactive
+            eas update --branch production --message "Auto-update from GitHub - $COMMIT_MESSAGE" --non-interactive
           fi
 
           

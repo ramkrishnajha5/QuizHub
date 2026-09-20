@@ -48,7 +48,7 @@ export default function QuizSetupScreen() {
         const [cats, quizzesSnap, foldersSnap] = await Promise.all([
           fetchCategories().catch(() => []),
           getDocs(query(collection(db, 'adminQuizzes'), where('isPublished', '==', true))).catch(() => ({ docs: [] })),
-          getDocs(query(collection(db, 'quizFolders'), orderBy('order', 'asc'))).catch(() => getDocs(collection(db, 'quizFolders'))).catch(() => ({ docs: [] })),
+          getDocs(collection(db, 'quizFolders')).catch(() => ({ docs: [] })),
         ]);
         setCategories(cats);
 
@@ -61,6 +61,7 @@ export default function QuizSetupScreen() {
         setCustomQuizzes(quizzes);
 
         const folderList = (foldersSnap as any).docs.map((d: any) => ({ id: d.id, ...d.data() } as QuizFolder));
+        folderList.sort((a: QuizFolder, b: QuizFolder) => (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
         setFolders(folderList);
       } catch (err) {
         console.error('Could not load data:', err);

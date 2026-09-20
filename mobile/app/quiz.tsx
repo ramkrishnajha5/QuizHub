@@ -6,6 +6,7 @@ import { saveQuizState, getQuizState, clearQuizState, setItem } from '../utils/s
 import { Question, UserAnswer, QuizAttempt, QuizQuestion } from '../shared/types';
 import { TIMERS } from '../shared/constants';
 import { auth, db } from '../utils/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { ChevronLeft, ChevronRight, Flag, Clock, CheckCircle, AlertTriangle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -102,9 +103,125 @@ export default function QuizRunnerScreen() {
 
     const init = async () => {
       try {
+        const configStr = params.config;
+
+        // 1. If params.config is provided from navigation, ALWAYS start fresh!
+        if (configStr) {
+          console.log('Starting fresh mobile quiz from params.config...');
+          await clearQuizState();
+          const state = JSON.parse(configStr);
+
+          // ══ Admin Custom Quiz ══
+          if (state?.source === 'admin' && state.questions) {
+            const qs: Question[] = state.questions.map((q: any) => ({
+              question: q.questionText,
+              correct_answer: q.options[q.correctOption],
+              incorrect_answers: q.options.filter((_: string, idx: number) => idx !== q.correctOption),
+              all_answers: q.options,
+              category: state.category || 'Custom Quiz',
+              difficulty: state.difficulty || 'medium',
+              type: 'multiple',
+              explanation: q.explanation,
+              section: q.section?.trim() || undefined,
+            }));
+
+            setCategoryId(0);
+            setQuestionCount(qs.length);
+            setQuestions(qs);
+            setSource('admin');
+            setNegativeMarking(state.negativeMarking || false);
+            setQuizId(state.quizId || '');
+            setQuizTitle(state.quizTitle || state.title || '');
+
+            const initialAnswers: UserAnswer[] = qs.map((_, i) => ({ questionIndex: i, selectedAnswer: null, isMarkedForReview: false, timeSpent: 0 }));
+            setUserAnswers(initialAnswers);
+            setTimeLeft((state.timeLimitMinutes || qs.length) * 60);
+
+            // Parse end time restriction
+            if (state.hasTimeRestriction && state.availableUntil) {
+              let endTs: number | null = null;
+              const au = state.availableUntil;
+              if (au.seconds) endTs = au.seconds * 1000;
+              else if (typeof au === 'string' || typeof au === 'number') endTs = new Date(au).getTime();
+              if (endTs && !isNaN(endTs)) {
+                const secsRemaining = Math.max(0, Math.floor((endTs - Date.now()) / 1000));
+                setQuizEndTime(endTs);
+                setEndTimeLeft(secsRemaining);
+              }
+            }
+
+            setLoading(false);
+            setIsInitialized(true);
+            setQuizInProgress(true);
+            return;
+          }
+
+          // ══ Regular OpenTDB Quiz ══
+          if (!state.categoryId) { router.replace('/setup'); return; }
+
+          setCategoryId(state.categoryId);
+          setQuestionCount(state.questionCount || 15);
+          setSource('api');
+          setNegativeMarking(false);
+          setQuizId('');
+
+          const response = await fetchQuestions(state.categoryId, state.questionCount);
+          const qs = response.questions;
+          if (!qs || qs.length === 0) {
+            setAlert({ type: 'error', message: 'No questions available. Try a different category.' });
+            setTimeout(() => router.replace('/setup'), 3000);
+            return;
+          }
+
+          setQuestions(qs);
+          const initialAnswers: UserAnswer[] = qs.map((_, i) => ({ questionIndex: i, selectedAnswer: null, isMarkedForReview: false, timeSpent: 0 }));
+          setUserAnswers(initialAnswers);
+          setTimeLeft(TIMERS[state.questionCount] || TIMERS[15]);
+          setLoading(false);
+          setIsInitialized(true);
+          setQuizInProgress(true);
+          return;
+        }
+
+        // 2. If NO params.config, check if we have a saved active quiz in storage to resume:
         const saved = await getQuizState();
         if (saved && saved.status === 'active') {
-          setQuestions(saved.questions);
+          console.log('Resuming active quiz from mobile storage...');
+          let questionsToUse: Question[] = saved.questions || [];
+
+          // Auto-heal: If saved questions are missing sections, fetch from Firestore!
+          const hasSections = questionsToUse.some((q: any) => q.section && q.section.trim());
+          if (!hasSections && questionsToUse.length > 0) {
+            try {
+              console.log('Checking Firestore to sync sections for saved mobile quiz...');
+              const qSnap = await getDocs(query(collection(db, 'adminQuizzes'), where('isPublished', '==', true)));
+              const publishedQuizzes = qSnap.docs.map(d => ({ quizId: d.id, ...d.data() } as any));
+              const matched = publishedQuizzes.find((pq: any) =>
+                (saved.quizId && pq.quizId === saved.quizId) ||
+                (pq.questions && pq.questions.length === questionsToUse.length &&
+                  (pq.title === saved.category || pq.title === saved.quizTitle || pq.questions[0]?.questionText === questionsToUse[0]?.question))
+              );
+
+              if (matched && matched.questions) {
+                console.log('✅ Found matching Firestore quiz in mobile:', matched.title, 'with', matched.sections?.length || 0, 'sections. Syncing...');
+                if (!saved.quizId) setQuizId(matched.quizId);
+                setSource('admin');
+                if (matched.title) setQuizTitle(matched.title);
+
+                questionsToUse = questionsToUse.map((q: any, i: number) => {
+                  const liveQ = matched.questions[i] || matched.questions.find((lq: any) => lq.questionText === q.question);
+                  return {
+                    ...q,
+                    section: liveQ?.section?.trim() || undefined
+                  };
+                });
+              }
+            } catch (syncErr) {
+              console.warn('Could not sync sections in mobile quiz:', syncErr);
+            }
+          }
+
+          setQuestions(questionsToUse);
           setUserAnswers(saved.userAnswers);
           setTimeLeft(saved.timeLeft);
           setCurrentQuestionIndex(saved.currentQuestionIndex);
@@ -112,86 +229,16 @@ export default function QuizRunnerScreen() {
           setQuestionCount(saved.questionCount || saved.questions.length);
           setSource(saved.source || 'api');
           setNegativeMarking(saved.negativeMarking || false);
-          setQuizId(saved.quizId || '');
+          if (saved.quizId) setQuizId(saved.quizId);
+          if (saved.quizTitle) setQuizTitle(saved.quizTitle);
           setLoading(false);
           setIsInitialized(true);
           setQuizInProgress(true);
           return;
         }
 
-        const configStr = params.config;
-        if (!configStr) { router.replace('/setup'); return; }
-        const state = JSON.parse(configStr);
-
-        // ══ Admin Custom Quiz ══
-        if (state?.source === 'admin' && state.questions) {
-          const qs: Question[] = state.questions.map((q: any, i: number) => ({
-            question: q.questionText,
-            correct_answer: q.options[q.correctOption],
-            incorrect_answers: q.options.filter((_: string, idx: number) => idx !== q.correctOption),
-            all_answers: q.options,
-            category: state.category || 'Custom Quiz',
-            difficulty: state.difficulty || 'medium',
-            type: 'multiple',
-            explanation: q.explanation,
-            section: q.section?.trim() || undefined,
-          }));
-
-          setCategoryId(0);
-          setQuestionCount(qs.length);
-          setQuestions(qs);
-          setSource('admin');
-          setNegativeMarking(state.negativeMarking || false);
-          setQuizId(state.quizId || '');
-          setQuizTitle(state.quizTitle || state.title || '');
-
-          const initialAnswers: UserAnswer[] = qs.map((_, i) => ({ questionIndex: i, selectedAnswer: null, isMarkedForReview: false, timeSpent: 0 }));
-          setUserAnswers(initialAnswers);
-          setTimeLeft((state.timeLimitMinutes || qs.length) * 60);
-
-          // Parse end time restriction
-          if (state.hasTimeRestriction && state.availableUntil) {
-            let endTs: number | null = null;
-            const au = state.availableUntil;
-            if (au.seconds) endTs = au.seconds * 1000;
-            else if (typeof au === 'string' || typeof au === 'number') endTs = new Date(au).getTime();
-            if (endTs && !isNaN(endTs)) {
-              const secsRemaining = Math.max(0, Math.floor((endTs - Date.now()) / 1000));
-              setQuizEndTime(endTs);
-              setEndTimeLeft(secsRemaining);
-            }
-          }
-
-          setLoading(false);
-          setIsInitialized(true);
-          setQuizInProgress(true);
-          return;
-        }
-
-        // ══ Regular OpenTDB Quiz ══
-        if (!state.categoryId) { router.replace('/setup'); return; }
-
-        setCategoryId(state.categoryId);
-        setQuestionCount(state.questionCount || 15);
-        setSource('api');
-        setNegativeMarking(false);
-        setQuizId('');
-
-        const response = await fetchQuestions(state.categoryId, state.questionCount);
-        const qs = response.questions;
-        if (!qs || qs.length === 0) {
-          setAlert({ type: 'error', message: 'No questions available. Try a different category.' });
-          setTimeout(() => router.replace('/setup'), 3000);
-          return;
-        }
-
-        setQuestions(qs);
-        const initialAnswers: UserAnswer[] = qs.map((_, i) => ({ questionIndex: i, selectedAnswer: null, isMarkedForReview: false, timeSpent: 0 }));
-        setUserAnswers(initialAnswers);
-        setTimeLeft(TIMERS[state.questionCount] || TIMERS[15]);
-        setLoading(false);
-        setIsInitialized(true);
-        setQuizInProgress(true);
+        router.replace('/setup');
+        return;
       } catch (error: any) {
         console.error('Error initializing quiz:', error);
         setAlert({ type: 'error', message: error.message || 'Failed to load questions' });
@@ -257,12 +304,13 @@ export default function QuizRunnerScreen() {
           source,
           negativeMarking,
           quizId,
+          quizTitle,
           ...stateRef.current
         });
       }
     }, 5000);
     return () => clearInterval(saver);
-  }, [loading, isSubmitting, questions, categoryId, questionCount, source, negativeMarking, quizId]);
+  }, [loading, isSubmitting, questions, categoryId, questionCount, source, negativeMarking, quizId, quizTitle]);
 
   const handleAnswer = (answer: string) => {
     const updated = [...userAnswers];
