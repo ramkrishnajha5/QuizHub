@@ -13,6 +13,7 @@ import Alert from '../components/Alert';
 import { saveQuizResult } from '../utils/saveQuizResult';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuiz } from '../contexts/QuizContext';
+import { getPublishedAdminQuizzes } from '../admin/utils/adminFirestore';
 import { QuizQuestion, UserAnswer as QuizUserAnswer } from '../types';
 import CustomModal from '../components/CustomModal';
 import { useCustomModal } from '../hooks/useCustomModal';
@@ -44,6 +45,9 @@ const QuizRunner: React.FC = () => {
   const [submitCooldown, setSubmitCooldown] = useState(0);
   const [globalEndTime, setGlobalEndTime] = useState<number | null>(null);
   const [activeSection, setActiveSection] = useState<string>('');
+  const [quizId, setQuizId] = useState<string | null>(null);
+  const [quizSource, setQuizSource] = useState<string>('api');
+  const [quizTitle, setQuizTitle] = useState<string>('');
   const { modalState, showConfirm, closeModal } = useCustomModal();
   const warningShownRef = useRef(false);
 
@@ -93,12 +97,149 @@ const QuizRunner: React.FC = () => {
 
     const init = async () => {
       try {
+        const state = location.state as any;
+
+        // 1. If fresh navigation state was passed (e.g. from QuizSetup), ALWAYS initialize from state!
+        if (state && (state.source === 'admin' || state.categoryId)) {
+          console.log('Starting new quiz from navigation state...');
+          await clearQuizState();
+
+          if (state.source === 'admin' && state.questions) {
+            console.log('Loading custom admin quiz:', state.title);
+            if (state.quizId) setQuizId(state.quizId);
+            setQuizSource('admin');
+            if (state.title) setQuizTitle(state.title);
+
+            const qs: Question[] = state.questions.map((q: any) => ({
+              question: q.questionText,
+              correct_answer: q.options[q.correctOption],
+              incorrect_answers: q.options.filter((_: string, idx: number) => idx !== q.correctOption),
+              all_answers: q.options,
+              category: state.category,
+              difficulty: state.difficulty,
+              type: 'multiple',
+              explanation: q.explanation,
+              section: q.section?.trim() || undefined,
+            }));
+
+            setCategoryId(0);
+            setQuestionCount(qs.length);
+            setQuestions(qs);
+
+            const initialAnswers: UserAnswer[] = qs.map((_, i) => ({
+              questionIndex: i,
+              selectedAnswer: null,
+              isMarkedForReview: false,
+              timeSpent: 0,
+            }));
+            setUserAnswers(initialAnswers);
+
+            setTimeLeft((state.timeLimitMinutes || qs.length) * 60);
+
+            if (state.availableUntil) {
+              const extractDate = (val: any) => {
+                if (!val) return null;
+                if (val.seconds) return new Date(val.seconds * 1000);
+                if (val.toDate) return val.toDate();
+                return new Date(val);
+              };
+              const endDate = extractDate(state.availableUntil);
+              if (endDate) setGlobalEndTime(endDate.getTime());
+            }
+
+            console.log('✅ Custom quiz initialized with', qs.length, 'questions');
+            setLoading(false);
+            setIsInitialized(true);
+            setQuizInProgress(true);
+            return;
+          }
+
+          // Regular OpenTDB Quiz
+          setCategoryId(state.categoryId);
+          setQuestionCount(state.questionCount || 15);
+          setQuizSource('api');
+
+          const response = await fetchQuestions(state.categoryId, state.questionCount);
+          const qs = response.questions;
+          const warning = response.warning;
+
+          if (warning) {
+            setAlert({ type: 'warning', message: warning });
+            setTimeout(() => setAlert(null), 5000);
+          }
+
+          if (!qs || !Array.isArray(qs) || qs.length === 0) {
+            console.error('No questions returned from API');
+            if (!hasShownError) {
+              setHasShownError(true);
+              setAlert({ type: 'error', message: 'No questions available for this category. Please try another selection.' });
+              setTimeout(() => navigate('/setup'), 3000);
+            }
+            return;
+          }
+
+          setQuestions(qs);
+          const initialAnswers: UserAnswer[] = qs.map((_, i) => ({
+            questionIndex: i,
+            selectedAnswer: null,
+            isMarkedForReview: false,
+            timeSpent: 0
+          }));
+          setUserAnswers(initialAnswers);
+
+          const duration = TIMERS[state.questionCount] || TIMERS[15];
+          setTimeLeft(duration);
+
+          console.log('✅ Quiz initialized successfully with', qs.length, 'questions');
+          setLoading(false);
+          setIsInitialized(true);
+          setQuizInProgress(true);
+          return;
+        }
+
+        // 2. If NO navigation state is present (e.g. browser reloaded / resumed), check IndexedDB:
         const saved = await getQuizState();
 
         if (saved && saved.status === 'active') {
-          // Resume saved quiz
-          console.log('Resuming saved quiz...');
-          setQuestions(saved.questions);
+          console.log('Resuming active quiz from IndexedDB...');
+          let questionsToUse: Question[] = saved.questions || [];
+
+          if (saved.quizId) setQuizId(saved.quizId);
+          if (saved.source) setQuizSource(saved.source);
+          if (saved.title) setQuizTitle(saved.title);
+
+          // Auto-heal: If saved questions are missing sections, fetch latest from Firestore!
+          const hasSections = questionsToUse.some((q: any) => q.section && q.section.trim());
+          if (!hasSections && questionsToUse.length > 0) {
+            try {
+              console.log('Checking Firestore to sync sections for saved quiz...');
+              const publishedQuizzes = await getPublishedAdminQuizzes();
+              const matched = publishedQuizzes.find(pq =>
+                (saved.quizId && pq.quizId === saved.quizId) ||
+                (pq.questions && pq.questions.length === questionsToUse.length &&
+                  (pq.title === saved.category || pq.title === saved.title || pq.questions[0]?.questionText === questionsToUse[0]?.question))
+              );
+
+              if (matched && matched.questions) {
+                console.log('✅ Found matching Firestore quiz:', matched.title, 'with', matched.sections?.length || 0, 'sections. Syncing sections...');
+                if (!saved.quizId) setQuizId(matched.quizId);
+                setQuizSource('admin');
+                if (matched.title) setQuizTitle(matched.title);
+
+                questionsToUse = questionsToUse.map((q: any, i: number) => {
+                  const liveQ = matched.questions[i] || matched.questions.find((lq: any) => lq.questionText === q.question);
+                  return {
+                    ...q,
+                    section: liveQ?.section?.trim() || undefined
+                  };
+                });
+              }
+            } catch (syncErr) {
+              console.warn('Could not sync sections from Firestore:', syncErr);
+            }
+          }
+
+          setQuestions(questionsToUse);
           setUserAnswers(saved.userAnswers);
           setTimeLeft(saved.timeLeft);
           setCurrentQuestionIndex(saved.currentQuestionIndex);
@@ -108,118 +249,10 @@ const QuizRunner: React.FC = () => {
           return;
         }
 
-        // New quiz - check if we have state
-        const state = location.state as any;
-
-        // ══ Admin Custom Quiz ══
-        if (state?.source === 'admin' && state.questions) {
-          console.log('Loading custom admin quiz:', state.title);
-
-          // Convert admin quiz format to Question format
-          const qs: Question[] = state.questions.map((q: any, i: number) => ({
-            question: q.questionText,
-            correct_answer: q.options[q.correctOption],
-            incorrect_answers: q.options.filter((_: string, idx: number) => idx !== q.correctOption),
-            all_answers: q.options, // Keep original order for admin quizzes
-            category: state.category,
-            difficulty: state.difficulty,
-            type: 'multiple',
-            explanation: q.explanation,
-            section: q.section?.trim() || undefined,
-          }));
-
-          setCategoryId(0);
-          setQuestionCount(qs.length);
-          setQuestions(qs);
-
-          const initialAnswers: UserAnswer[] = qs.map((_, i) => ({
-            questionIndex: i,
-            selectedAnswer: null,
-            isMarkedForReview: false,
-            timeSpent: 0,
-          }));
-          setUserAnswers(initialAnswers);
-
-          // Timer: Use admin assigned time limit explicitly
-          setTimeLeft((state.timeLimitMinutes || qs.length) * 60);
-
-          // If admin quiz has an end time, store it for global enforcement
-          if (state.availableUntil) {
-            const extractDate = (val: any) => {
-              if (!val) return null;
-              if (val.seconds) return new Date(val.seconds * 1000);
-              if (val.toDate) return val.toDate();
-              return new Date(val);
-            };
-            const endDate = extractDate(state.availableUntil);
-            if (endDate) setGlobalEndTime(endDate.getTime());
-          }
-
-          console.log('✅ Custom quiz initialized with', qs.length, 'questions');
-          setLoading(false);
-          setIsInitialized(true);
-          setQuizInProgress(true);
-          return;
-        }
-
-        // ══ Regular OpenTDB Quiz ══
-        if (!state || !state.categoryId) {
-          console.log('No quiz configuration found, redirecting to setup...');
-          navigate('/setup');
-          return;
-        }
-
-        // Set category and question count state for saving later
-        setCategoryId(state.categoryId);
-        setQuestionCount(state.questionCount || 15);
-
-        console.log('Fetching questions for category:', state.categoryId, 'questionCount:', state.questionCount);
-
-        // Fetch questions with count
-        const response = await fetchQuestions(state.categoryId, state.questionCount);
-        const qs = response.questions;
-        const warning = response.warning;
-
-        console.log('Questions fetched:', qs?.length || 0);
-
-        // Show warning if less than 25 questions
-        if (warning) {
-          setAlert({ type: 'warning', message: warning });
-          setTimeout(() => setAlert(null), 5000);
-        }
-
-        // Validate questions
-        if (!qs || !Array.isArray(qs) || qs.length === 0) {
-          console.error('No questions returned from API');
-          if (!hasShownError) {
-            setHasShownError(true);
-            setAlert({ type: 'error', message: 'No questions available for this category. Please try another selection.' });
-            setTimeout(() => navigate('/setup'), 3000);
-          }
-          return;
-        }
-
-        // Set questions
-        setQuestions(qs);
-
-        // Initialize answers structure
-        const initialAnswers: UserAnswer[] = qs.map((_, i) => ({
-          questionIndex: i,
-          selectedAnswer: null,
-          isMarkedForReview: false,
-          timeSpent: 0
-        }));
-        setUserAnswers(initialAnswers);
-
-        // Set timer based on question count
-        const duration = TIMERS[state.questionCount] || TIMERS[15];
-        setTimeLeft(duration);
-
-        console.log('✅ Quiz initialized successfully with', qs.length, 'questions');
-        setLoading(false);
-        setIsInitialized(true);
-        setQuizInProgress(true);
-
+        // 3. No state and no saved quiz found
+        console.log('No quiz configuration found, redirecting to setup...');
+        navigate('/setup');
+        return;
       } catch (error: any) {
         console.error('❌ Error initializing quiz:', error);
 
@@ -337,7 +370,7 @@ const QuizRunner: React.FC = () => {
     return () => clearInterval(checker);
   }, [globalEndTime, isSubmitting]);
 
-  // Autosave - include category info for resume banner on Dashboard
+  // Autosave - include category info and quiz identifiers
   useEffect(() => {
     const saver = setInterval(() => {
       if (!loading && !isSubmitting && questions.length > 0) {
@@ -346,12 +379,15 @@ const QuizRunner: React.FC = () => {
           category: questions[0]?.category || 'General',
           categoryId: categoryId,
           questionCount: questionCount,
+          quizId: quizId,
+          source: quizSource,
+          title: quizTitle,
           ...stateRef.current
         });
       }
     }, 5000);
     return () => clearInterval(saver);
-  }, [loading, isSubmitting, questions, categoryId, questionCount]);
+  }, [loading, isSubmitting, questions, categoryId, questionCount, quizId, quizSource, quizTitle]);
 
   // Keyboard Navigation
   useEffect(() => {
