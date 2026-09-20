@@ -226,31 +226,22 @@ const QuizRunner: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-darkbg flex flex-col transition-colors duration-200">
       
       {/* 1. Timer / Top Bar */}
-      <div className="bg-white dark:bg-darkcard shadow-sm px-4 py-3 flex justify-between items-center sticky top-16 z-40 border-b border-gray-100 dark:border-gray-700">
-        <div className="flex items-center space-x-4">
-          <span className="font-bold text-gray-500 dark:text-gray-400 text-sm">Q {currentQuestionIndex + 1}/{questions.length}</span>
-          <div className="hidden md:flex space-x-1">
-             {questions.map((_, idx) => (
-               <div 
-                key={idx} 
-                className={`w-2 h-2 rounded-full 
-                  ${idx === currentQuestionIndex ? 'bg-primary scale-125' : 
-                    userAnswers[idx].isMarkedForReview ? 'bg-yellow-400' :
-                    userAnswers[idx].selectedAnswer ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-600'}`}
-               />
-             ))}
-          </div>
+      <div className="bg-white dark:bg-darkcard shadow-sm px-4 md:px-6 py-3 flex justify-between items-center sticky top-16 z-40 border-b border-gray-100 dark:border-gray-700 w-full">
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          <span className="font-bold text-gray-700 dark:text-gray-200 text-sm md:text-base">
+            Q <span className="text-primary">{currentQuestionIndex + 1}</span>/{questions.length}
+          </span>
         </div>
-        <div className={`flex items-center font-mono font-bold text-xl ${timerColor}`}>
-          <Clock size={20} className="mr-2" />
-          {formatTime(timeLeft)}
+        <div className={`flex items-center font-mono font-bold text-base md:text-xl px-3 py-1 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex-shrink-0 shadow-inner ${timerColor}`}>
+          <Clock size={18} className="mr-2 flex-shrink-0" />
+          <span>{formatTime(timeLeft)}</span>
         </div>
         <button 
           onClick={finishQuiz}
           disabled={isSubmitting}
-          className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition shadow-sm font-medium disabled:opacity-50"
+          className="flex-shrink-0 px-4 py-2 bg-green-600 text-white text-xs md:text-sm rounded-lg hover:bg-green-700 transition shadow-sm font-semibold disabled:opacity-50"
         >
-          {isSubmitting ? 'Submitting...' : 'Submit'}
+          {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
         </button>
       </div>
 

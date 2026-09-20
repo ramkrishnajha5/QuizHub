@@ -187,6 +187,7 @@ export interface AdminQuizQuestion {
   options: string[];
   correctOption: number; // 0-3 index
   explanation?: string;
+  section?: string;
 }
 
 export interface AdminQuiz {
@@ -205,6 +206,7 @@ export interface AdminQuiz {
   availableFrom?: any;
   availableUntil?: any;
   questions: AdminQuizQuestion[];
+  sections?: string[];
   folderId?: string | null;
   folderPath?: string;
 }
@@ -214,6 +216,7 @@ export async function createAdminQuiz(quiz: Omit<AdminQuiz, 'quizId' | 'createdA
   const data = {
     ...quiz,
     quizId: quizRef.id,
+    sections: quiz.sections || [],
     folderId: quiz.folderId || null,
     folderPath: quiz.folderPath || '',
     createdAt: serverTimestamp(),
